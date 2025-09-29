@@ -283,9 +283,9 @@ function log_stdout(){
         if [ "${1}" == "stdout" ]; then
           stderr_ack=" "
         elif [ "${1}" == "stderr" ]; then
-          stderr_ack="*"
-        else
           stderr_ack="E"
+        else
+          stderr_ack="*"
         fi
       fi
       case "$line" in
@@ -329,6 +329,7 @@ function log_stdout(){
             if [[ "$line" == *"$key"* ]]; then
               Msg Debug "Message level Override: Key < '$key' > exists in the string < $line > with value '${errorOverload[$key]}'"
               msgType="${errorOverload[$key]}"
+              stderr_ack="e"
             fi
           done
         ;;
@@ -337,6 +338,7 @@ function log_stdout(){
             if [[ "$line" == *"$key"* ]]; then
               Msg Debug "Message level Override: Key < '$key' > exists in the string < $line > with value '${criticalOverload[$key]}'"
               msgType="${criticalOverload[$key]}"
+              stderr_ack="c"
             fi
           done
         ;;
@@ -345,6 +347,7 @@ function log_stdout(){
             if [[ "$line+" == *"$key"* ]]; then
               Msg Debug "Message level Override: Key < '$key' > exists in the string < $line > with value '${warningOverload[$key]}'"
               msgType="${warningOverload[$key]}"
+              stderr_ack="w"
             fi
           done
         ;;
@@ -353,6 +356,7 @@ function log_stdout(){
             if [[ "$line" == *"$key"* ]]; then
               Msg Debug "Message level Override: Key < '$key' > exists in the string < $line > with value '${infoOverload[$key]}'"
               msgType="${infoOverload[$key]}"
+              stderr_ack="i"
             fi
           done
         ;;
@@ -361,6 +365,7 @@ function log_stdout(){
             if [[ "$line" == *"$key"* ]]; then
               Msg Debug "Message level Override: Key < '$key' > exists in the string < $line > with value '${infoOverload[$key]}'"
               msgType="${infoOverload[$key]}"
+              stderr_ack="i"
             fi
           done
         ;;
@@ -369,6 +374,7 @@ function log_stdout(){
             if [[ "$line" == *"$key"* ]]; then
               Msg Debug "Message level Override: Key < '$key' > exists in the string < $line > with value '${debugOverload[$key]}'"
               msgType="${debugOverload[$key]}"
+              stderr_ack="d"
             fi
           done
         ;;
