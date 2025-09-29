@@ -587,7 +587,7 @@ if {$do_check_syntax == 1} {
 
 ######### RTL ANALYSIS ########
 if {$do_rtl == 1} {
-  LaunchRTLAnalysis 
+  LaunchRTLAnalysis
 }
 
 ######### LaunchSynthesis ########
