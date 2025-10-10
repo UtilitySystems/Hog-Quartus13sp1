@@ -5397,7 +5397,8 @@ proc ProjectExists {project {repo_path .}} {
     # if project exists we return the relative hog.conf file
     return [lindex [ListProjects $repo_path 0 1] $index]
   } else {
-    return 0
+    Msg Error "Project $project not found in repository $repo_path"
+    return 1
   }
 }
 

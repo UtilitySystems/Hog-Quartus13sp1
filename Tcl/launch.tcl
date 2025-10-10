@@ -472,7 +472,7 @@ if {[IsLibero]} {
 set project_path [file normalize "$repo_path/Projects/$project_name/"]
 
 # Get IDE name from project config file
-set proj_conf [ProjectExists $project $repo_path]
+set proj_conf [ProjectExists $project_name $repo_path]
 set ide_name_and_ver [string tolower [GetIDEFromConf $proj_conf]]
 set ide_name [lindex [regexp -all -inline {\S+} $ide_name_and_ver] 0]
 
