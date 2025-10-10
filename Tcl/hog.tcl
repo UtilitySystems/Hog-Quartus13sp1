@@ -81,6 +81,18 @@ proc AddHogFiles {libraries properties filesets} {
       set libs_in_fileset [MoveElementToEnd $libs_in_fileset "ips.src"]
     }
 
+    # Vitis: Check if defined apps have a corresponding source file
+    if {[IsVitisClassic]} {
+        if {[catch {set ws_apps [app list -dict]}]} { set ws_apps "" }
+        dict for {app_name app_config} $ws_apps {
+            set app_lib [string tolower "app_$app_name\.src"]
+            if {![IsInList $app_lib $libs_in_fileset 0 1]} {
+                Msg Warning "App '$app_name' exists in workspace but no corresponding sourcefile '$app_lib' found. \
+                  Make sure you have a list file with the correct naming convention: \[app_<app_name>\.src\]"
+            }
+        }
+    }
+
     # Loop over libraries in fileset
     foreach lib $libs_in_fileset {
       Msg Debug "lib: $lib \n"
@@ -91,6 +103,10 @@ proc AddHogFiles {libraries properties filesets} {
       Msg Debug "lib: $lib ext: $ext fileset: $fileset"
       # ADD NOW LISTS TO VIVADO PROJECT
       if {[IsXilinx]} {
+        # Skip Vitis libraries
+        if {[string match "app_*" [string tolower $lib]]} {
+          continue
+        }
         Msg Debug "Adding $lib to $fileset"
         add_files -norecurse -fileset $fileset $lib_files
         # Add Properties
@@ -210,7 +226,7 @@ proc AddHogFiles {libraries properties filesets} {
             by adding the following line .\n<simulator_name>.simulate.custom_wave_do=[file tail $f]"
           }
 
-          #Do file
+          # Do file
           if {[lsearch -inline -regexp $props "dofile"] >= 0} {
             Msg Warning "Setting a wave do file using the dofile property is deprecated.\
             Set this property in the sim.conf file under the \[$fileset\] section,\
@@ -471,7 +487,7 @@ proc AddHogFiles {libraries properties filesets} {
         foreach cur_file $lib_files {
           set file_type [FindFileType $cur_file]
 
-          #ADDING FILE PROPERTIES
+          # ADDING FILE PROPERTIES
           set props [DictGet $properties $cur_file]
 
           # Top synthesis module
@@ -505,6 +521,27 @@ proc AddHogFiles {libraries properties filesets} {
           foreach f $lib_files {
             Msg Debug "Diamond Adding simulation file $f to library $rootlib..."
             prj_src add -work $rootlib -simulate_only $f
+          }
+        }
+
+
+      } elseif {[IsVitisClassic]} {
+
+        # Get the workspace apps
+        if {[catch {set ws_apps [app list -dict]}]} { set ws_apps "" }
+
+        foreach app_name [dict keys $ws_apps] {
+          foreach f $lib_files {
+            if {[string tolower $rootlib] != [string tolower "app_$app_name"]} {
+              continue
+            }
+
+            Msg Info "Adding source file $f from lib: $lib to vitis app \[$app_name\]..."
+            set proj_f_path [regsub "^$globalSettings::repo_path" $f ""]
+            set proj_f_path [regsub  "[file tail $f]$" $proj_f_path ""]
+            Msg Debug "Project_f_path is $proj_f_path"
+
+            importsources -name $app_name -soft-link -path $f -target $proj_f_path
           }
         }
       }
@@ -2114,10 +2151,10 @@ proc GetHogFiles {args} {
 
 
   set parameters {
-    {list_files.arg ""  "The file wildcard, if not specified all Hog list files will be looked for."}
-    {sha_mode "Forwarded to ReadListFile, see there for info."}
-    {ext_path.arg "" "Path for the external libraries forwarded to ReadListFile."}
-    {print_log "Forwarded to ReadListFile, see there for info."}
+    {list_files.arg "" "The file wildcard, if not specified all Hog list files will be looked for."}
+    {sha_mode          "Forwarded to ReadListFile, see there for info."}
+    {ext_path.arg   "" "Path for the external libraries forwarded to ReadListFile."}
+    {print_log         "Forwarded to ReadListFile, see there for info."}
   }
   set usage "USAGE: GetHogFiles \[options\] <list path> <repository path>"
   if {[catch {array set options [cmdline::getoptions args $parameters $usage]}] || [llength $args] != 2} {
@@ -2178,7 +2215,7 @@ proc GetIDECommand {proj_conf} {
     set ide_name_and_ver [string tolower [GetIDEFromConf $proj_conf]]
     set ide_name [lindex [regexp -all -inline {\S+} $ide_name_and_ver] 0]
 
-    if {$ide_name eq "vivado"} {
+    if {$ide_name eq "vivado" || $ide_name eq "vivado_vitis_classic"} {
       set command "vivado"
       # A space ater the before_tcl_script is important
       set before_tcl_script " -nojournal -nolog -mode batch -notrace -source "
@@ -2208,6 +2245,12 @@ proc GetIDECommand {proj_conf} {
       set before_tcl_script " "
       set after_tcl_script " "
       set end_marker ""
+    } elseif {$ide_name eq "vitis_classic"} {
+      set command "xsct"
+      # A space after the before_tcl_script is important
+      set before_tcl_script ""
+      set after_tcl_script " "
+      set end_marker ""
     } elseif {$ide_name eq "ghdl"} {
       set command "ghdl"
       set before_tcl_script " "
@@ -2230,7 +2273,11 @@ proc GetIDEFromConf {conf_file} {
   set f [open $conf_file "r"]
   set line [gets $f]
   close $f
-  if {[regexp -all {^\# *(\w*) *(\d+\.\d+(?:\.\d+)?(?:\.\d+)?)?(_.*)? *$} $line dummy ide version patch]} {
+  if {[regexp -all {^\# *(\w*) *(vitis_classic)? *(\d+\.\d+(?:\.\d+)?(?:\.\d+)?)?(_.*)? *$} $line dummy ide vitisflag version patch]} {
+    if {[info exists vitisflag] && $vitisflag != ""} {
+      set ide "${ide}_${vitisflag}"
+    }
+
     if {[info exists version] && $version != ""} {
       set ver $version
     } else {
@@ -2283,6 +2330,8 @@ proc GetIDEVersion {} {
     set ver [get_libero_version]
   } elseif {[IsDiamond]} {
     regexp {\d+\.\d+(\.\d+)?} [sys_install version] ver
+  } elseif {[IsVitisClassic]} {
+    regexp {\d+\.\d+(\.\d+)?} [version] ver
   }
   return $ver
 }
@@ -3888,9 +3937,13 @@ proc InitLauncher {script tcl_path parameters commands argv {custom_commands ""}
   set directive [string toupper [lindex $arg_list 0]]
   set min_n_of_args 0
   set max_n_of_args 2
-  set argument_is_no_project 0
+  set argument_is_no_project 1
 
   switch -regexp -- $directive "$commands"
+
+  if {[IsInList $directive $directives_with_projects 1]} {
+    set argument_is_no_project 0
+  }
 
   if {[IsInList "-help" $option_list] || [IsInList "-?" $option_list] || [IsInList "-h" $option_list]} {
     if {$directive != ""} {
@@ -4033,12 +4086,29 @@ proc IsLibero {} {
 # @param[in] element The element to search
 # @param[in] list    The list to search into
 # @param[in] regex   An optional regex to match. If 0, the element should match exactly an object in the list
-proc IsInList {element list {regex 0}} {
+# @param[in] nocase  If 1, perform case-insensitive comparison
+proc IsInList {element list {regex 0} {nocase 0}} {
   foreach x $list {
-    if {$regex == 1 && [regexp $x $element]} {
-      return 1
-    } elseif {$regex == 0 && $x eq $element} {
-      return 1
+    if {$regex == 1} {
+      if {$nocase == 1} {
+        if {[regexp -nocase $x $element]} {
+          return 1
+        }
+      } else {
+        if {[regexp $x $element]} {
+          return 1
+        }
+      }
+    } elseif {$regex == 0} {
+      if {$nocase == 1} {
+        if {[string tolower $x] eq [string tolower $element]} {
+          return 1
+        }
+      } else {
+        if {$x eq $element} {
+          return 1
+        }
+      }
     }
   }
   return 0
@@ -4084,7 +4154,7 @@ proc IsSynplify {} {
 
 ## @brief Returns true, if we are in tclsh
 proc IsTclsh {} {
-  return [expr {![IsQuartus] && ![IsXilinx] && ![IsLibero] && ![IsSynplify] && ![IsDiamond]}]
+  return [expr {![IsQuartus] && ![IsXilinx] && ![IsVitisClassic] && ![IsLibero] && ![IsSynplify] && ![IsDiamond]}]
 }
 
 ## @brief Find out if the given Xilinx part is a Vesal chip
@@ -4115,6 +4185,8 @@ proc IsXilinx {} {
     set current_version [version]
     if {[string first PlanAhead $current_version] == 0 || [string first Vivado $current_version] == 0} {
       return 1
+    } elseif {[string first xsct $current_version] == 0} {
+      return 0
     } else {
       Msg Warning "This IDE has the version command but it is not PlanAhead or Vivado: $current_version"
       return 0
@@ -4122,6 +4194,11 @@ proc IsXilinx {} {
   } else {
     return 0
   }
+}
+
+## @brief Returns true, if the IDE is vitis_classic
+proc IsVitisClassic {} {
+  return [expr {[info commands platform] != ""}]
 }
 
 ## @brief Find out if the given Xilinx part is a Vesal chip
@@ -4486,6 +4563,29 @@ proc LaunchImplementation {reset do_create run_folder project_name {repo_path .}
   }
 }
 
+# @brief Re-generate the bitstream, for the current IDE and project (Vivado only for the moment). \
+# Useful for a Vivado-Vitis project to update the bitstream with a new ELF or to generate a new \
+# bootimage (ZYNQ) without running the full workflow.
+#
+# @param[in] project_name The name of the project
+# @param[in] repo_path    The main path of the git repository (Default .)
+proc GenerateBitstreamOnly {project_name {repo_path .}} {
+  cd $repo_path
+  lassign [GetRepoVersions [file normalize ./Top/$project_name] $repo_path] sha
+  set describe [GetHogDescribe $sha $repo_path]
+  set dst_dir [file normalize "$repo_path/bin/$project_name\-$describe"]
+
+  cd Projects/$project_name/$project_name.runs/impl_1
+  Msg Info "Running pre-bitstream..."
+  source $repo_path/Hog/Tcl/integrated/pre-bitstream.tcl
+
+  Msg Info "Writing bitstream for $project_name..."
+  open_run impl_1
+  write_bitstream -force $dst_dir/$project_name-$describe.bit
+
+  Msg Info "Running post-bitstream..."
+  source $repo_path/Hog/Tcl/integrated/post-bitstream.tcl
+}
 
 # @brief Launch the simulation (Vivado only for the moment)
 #
@@ -4839,12 +4939,307 @@ proc LaunchSynthesis {reset do_create run_folder project_name {repo_path .} {ext
   }
 }
 
+
+# @brief Launch the Vitis build
+#
+# @param[in] project_name The name of the project
+# @param[in] repo_path    The main path of the git repository (Default ".")
+# @param[in] stage        The stage of the build (Default "presynth")
+proc LaunchVitisBuild {project_name {repo_path .} {stage "presynth"}} {
+  set proj_name [file tail $project_name]
+  set bin_dir [file normalize "$repo_path/bin"]
+
+  cd $repo_path
+
+  if {[catch {set ws_apps [app list -dict]}]} { set ws_apps "" }
+  lassign [GetRepoVersions [file normalize $repo_path/Top/$proj_name] $repo_path ] commit version  hog_hash hog_ver  top_hash top_ver \
+           libs hashes vers  cons_ver cons_hash  ext_names ext_hashes  xml_hash xml_ver user_ip_repos user_ip_hashes user_ip_vers
+  set this_commit [GetSHA]
+  if {$commit == 0 } { set commit $this_commit }
+  set flavour [GetProjectFlavour $project_name]
+  lassign [GetDateAndTime $commit] date timee
+
+  foreach app_name [dict keys $ws_apps] {
+    app config -name $app_name -set build-config Release
+  }
+
+  WriteGenerics "vitisbuild" $repo_path $proj_name $date $timee $commit $version $top_hash $top_ver $hog_hash $hog_ver $cons_ver $cons_hash $libs \
+                             $vers $hashes $ext_names $ext_hashes $user_ip_repos $user_ip_vers $user_ip_hashes $flavour $xml_ver $xml_hash
+  foreach app_name [dict keys $ws_apps] { app build -name $app_name }
+
+  if {$stage == "presynth"} {
+    Msg Info "Done building apps for $proj_name..."
+    # return
+  }
+
+  Msg Info "Evaluating Git sha for $proj_name..."
+  lassign [GetRepoVersions [file normalize ./Top/$proj_name] $repo_path] sha
+
+  set describe [GetHogDescribe $sha $repo_path]
+  Msg Info "Hog describe set to: $describe"
+  set dst_dir [file normalize "$bin_dir/$proj_name\-$describe"]
+  if {![file exists $dst_dir]} {
+    Msg Info "Creating $dst_dir..."
+    file mkdir $dst_dir
+  }
+
+  foreach app_name [dict keys $ws_apps] {
+    set main_file "$repo_path/Projects/$proj_name/vitis_classic/$app_name/Release/$app_name.elf"
+    set dst_main [file normalize "$dst_dir/$proj_name\-$app_name\-$describe.elf"]
+
+    if {![file exists $main_file]} {
+      Msg Error "No Vitis .elf file found. Perhaps there was an issue building it?"
+      continue
+    }
+
+    Msg Info "Copying main binary file $main_file into $dst_main..."
+    file copy -force $main_file $dst_main
+  }
+}
+
+# @brief Returns the BIF file path from the properties
+#
+# @param[in] props     A dictionary with the properties defined in Hog.conf
+# @param[in] app       The application name
+# @return              The path of the BIF file or empty string if not found
+proc GetProcFromProps {repo_path props platform} {
+  if {[dict exists $props "platform:$platform" "BIF"]} {
+    set bif_file [dict get $props "platform:$platform" "BIF"]
+    if {[IsRelativePath $bif_file] == 1} {
+      set bif_file "$repo_path/$bif_file"
+    }
+    return $bif_file
+  } else {
+    Msg CriticalWarning "BIF file not found in platform ($platform) properties, skipping bootable image (.bin) generation"
+    return ""
+  }
+}
+
+# @brief Returns the BIF file path from the properties
+#
+# @param[in] props     A dictionary with the properties defined in Hog.conf
+# @param[in] platform  The platform name
+# @return              The path of the BIF file or empty string if not found
+proc GetBifFromProps {repo_path props platform} {
+  if {[dict exists $props "platform:$platform" "BIF"]} {
+    set bif_file [dict get $props "platform:$platform" "BIF"]
+    if {[IsRelativePath $bif_file] == 1} {
+      set bif_file "$repo_path/$bif_file"
+    }
+    return $bif_file
+  } else {
+    Msg CriticalWarning "BIF file not found in platform ($platform) properties, skipping bootable image (.bin) generation"
+    return ""
+  }
+}
+
+# @brief Returns the part number from the properties
+#
+# @param[in] props  A dictionary with the properties defined in Hog.conf
+# @return           The part number
+proc GetPartFromProps {props} {
+  if {[dict exists $props "main" "PART"]} {
+    return [string tolower [dict get $props "main" "PART"]]
+  } else {
+    Msg Error "Part number not found in properties"
+    return ""
+  }
+}
+
+# @brief Determines the architecture from the part number
+#
+# @param[in] part  The FPGA part number (e.g., xczu4cg-fbvb900-1-e)
+# @return          String with the architecture (zynqmp, zynq, versal, or unknown)
+proc GetArchFromPart {part} {
+  # Determine architecture based on part prefix
+  if {[string match "xczu*" $part]} {
+    return "zynqmp"
+  } elseif {[string match "xc7z*" $part]} {
+    return "zynq"
+  } elseif {[string match "xck26*" $part]} {
+    return "versal"
+  } else {
+    Msg CriticalWarning "Unknown part number: $part"
+    return "unknown"
+  }
+}
+
+# @brief Returns a list of application names from the properties
+#
+# @param[in] props       A dictionary with the applications properties defined in Hog.conf
+# @param[in] list_names  If 1, returns a list of application names rather than a dictionary of applications
+proc GetAppsFromProps {props {list_names 0}} {
+  set prop_apps [dict filter $props key {app:*}]
+  set apps [dict create]
+  set app_names [list]
+
+  dict for {app_key app_value} $prop_apps {
+    if {[regexp {^app:(.+)$} $app_key -> app_name]} {
+      set app_name [string trim [string tolower $app_name]]
+      # Convert only the keys of the inner dictionary to lowercase
+      set app_value_lower [dict create]
+      dict for {key value} $app_value {
+          dict set app_value_lower [string tolower $key] $value
+      }
+      dict set apps $app_name $app_value_lower
+      lappend app_names $app_name
+    }
+  }
+  if {$list_names eq 1} {
+    return $app_names
+  }
+  return $apps
+}
+
+# @brief Returns a list of platform names from the properties
+#
+# @param[in] props       A dictionary with the platforms properties
+# @param[in] list_names  If 1, returns a list of platform names rather than a dictionary of platforms
+# @param[in] lower_case  If 1, returns the platform names in lowercase
+proc GetPlatformsFromProps {props {list_names 0} {lower_case 0}} {
+  set platforms [dict create]
+  set platform_names [list]
+  set prop_platforms [dict filter $props key {platform:*}]
+
+  dict for {platform_key platform_value} $prop_platforms {
+    if {[regexp {^platform:(.+)$} $platform_key -> platform_name]} {
+      if {$lower_case == 1} {
+        set platform_name [string trim [string tolower $platform_name]]
+      } else {
+        set platform_name [string trim $platform_name]
+      }
+      dict set platforms $platform_name $platform_value
+      lappend platform_names $platform_name
+    }
+  }
+  if {$list_names eq 1} {
+    return $platform_names
+  }
+  return $platforms
+}
+
+# @brief Generates boot artifacts for the application. If the application targets a soft \
+# processor (e.g. microblaze, riscv), the bitstream (.bit) memory is updated to include the ELF file. Otherwise, for \
+# applications targeting a hard processor (e.g. zynq, versal), a bootable binary image (.bin) is generated.
+#
+# @param[in] properties  A dictionary with the properties defined in Hog.conf
+# @param[in] repo_path   The main path of the git repository
+# @param[in] proj_dir    The directory of the project
+# @param[in] bin_dir     The directory of the generated binary files
+# @param[in] bitfile     The bitfile to update
+# @param[in] mmi_file    The MMI file to update
+proc GenerateBootArtifacts {properties repo_path proj_dir bin_dir proj_name describe bitfile mmi_file} {
+  set elf_list [glob -nocomplain "$bin_dir/*.elf"]
+  set apps [GetAppsFromProps $properties 0]
+  set platforms [GetPlatformsFromProps $properties 1]
+
+  if {[llength $elf_list] == 0} {
+    Msg Warning "No ELF files found in $bin_dir, skipping generation of boot artifacts"
+    return
+  }
+
+  if {![file exists $bitfile]} {
+    Msg Warning "Bitfile $bitfile does not exist, skipping generation of boot artifacts"
+    return
+  }
+
+  Msg Info "Generating boot artifacts for $proj_name..."
+  Msg Info "Found apps: $apps"
+  Msg Info "Found platforms: $platforms"
+
+
+  # Update bitstream with ELF files for the applications targeting a soft processor (e.g. microblaze, riscv)
+  foreach elf_file $elf_list {
+    set elf_name [file rootname [file tail $elf_file]]
+    Msg Info "Found elf name: $elf_name"
+    Msg Info "Removing $describe from elf"
+
+    # Extract application name from ELF file name
+    if {[regexp "^(.+)-(.+)-$describe\$" $elf_name -> project_name elf_app]} {
+      set elf_app [string trim [string tolower $elf_app]]
+      Msg Info "Found elf_app: $elf_app"
+    } else {
+      Msg Error "Could not extract app name from elf file: $elf_name"
+      continue
+    }
+    Msg Info "Removed project name ($project_name) and $describe from elf"
+
+    set app_conf [dict get $apps $elf_app]
+    set plat [dict get $app_conf "platform"]
+    set app_proc [dict get $app_conf "proc"]
+
+    # If the application targets a soft processor, update bitstream memory with ELF file
+    if {[regexp -nocase {microblaze|risc} $app_proc]} {
+      Msg Info "Detected soft processor ($app_proc) for $elf_app, updating bitstream memory with ELF file..."
+
+      set proc_map [ReadProcMap $proc_map_file]
+      if {[dict size $proc_map] == 0} {
+        Msg Error "Failed to read map from $proc_map_file"
+        continue
+      }
+      Msg Info "Found processor map: $proc_map"
+
+      set proc_cell [lindex [split [dict get $proc_map $app_proc] ":"] 1]
+      Msg Info "Updating memory at processor cell: $proc_cell"
+
+      set update_mem_cmd "updatemem -force -meminfo $mmi_file -data $elf_file -bit $bitfile -proc $proc_cell -out $bitfile"
+      set ret [catch {exec -ignorestderr {*}$update_mem_cmd >@ stdout} result]
+      if {$ret != 0} {
+        Msg Error "Error updating memory for $elf_app: $result"
+      }
+      Msg Info "Done updating memory for $elf_app"
+
+    } else {
+      Msg Info "Detected hard processor ($app_proc) for $elf_app. Make sure the .elf file is defined in the platform ($plat)\
+                .bif file to be included in the bootable binary image (.bin) generation."
+    }
+  }
+
+
+  # Generate a bootable binary image for platforms that have a .bif file defined
+  foreach plat $platforms {
+    set bif_file [GetBifFromProps $repo_path $properties $plat]
+    if {$bif_file != ""} {
+      Msg Info "Generating bootable binary image (.bin) for $plat"
+      set arch [GetArchFromPart [GetPartFromProps $properties]]
+      Msg Info "Architecture: $arch"
+      Msg Info "BIF file: $bif_file"
+      set bootgen_cmd "bootgen -arch $arch -image $bif_file -o i $bin_dir/$proj_name-$plat-$describe.bin -w on"
+      set ret [catch {exec -ignorestderr {*}$bootgen_cmd >@ stdout} result]
+      if {$ret != 0} {
+        Msg Error "Error generating bootable binary image (.bin) for $elf_app: $result"
+      }
+      Msg Info "Done generating bootable binary image (.bin) for $plat"
+    }
+  }
+}
+
+# @brief Reads the processor map file
+#
+# @param[in] proc_map_file The path to the processor map file
+# @return A dictionary with the processor map
+proc ReadProcMap {proc_map_file} {
+  set proc_map [dict create]
+  if {[file exists $proc_map_file]} {
+    set f [open $proc_map_file "r"]
+    while {[gets $f line] >= 0} {
+      Msg Debug "Line: $line"
+      if {[regexp {^(\S+)\s+(.+)$} $line -> key value]} {
+        Msg Debug "Found key: $key, value: $value in proc map file"
+        dict set proc_map $key $value
+      }
+    }
+    close $f
+  }
+  return $proc_map
+}
+
+
 # Returns the list of all the Hog Projects in the repository
 #
 # @param[in] repo_path  The main path of the git repository
 # @param[in] print      if 1 print the list of projects in the repository, if 2 does not print test projects
 # @param[in] ret_conf   if 1 returns conf file rather than list of project names
-
 proc ListProjects {{repo_path .} {print 1} {ret_conf 0}} {
   set top_path [file normalize $repo_path/Top]
   set confs [findFiles [file normalize $top_path] hog.conf]
@@ -5020,7 +5415,8 @@ proc ProjectExists {project {repo_path .}} {
     # if project exists we return the relative hog.conf file
     return [lindex [ListProjects $repo_path 0 1] $index]
   } else {
-    return 0
+    Msg Error "Project $project not found in repository $repo_path"
+    return 1
   }
 }
 
@@ -5095,10 +5491,10 @@ proc ReadExtraFileList {extra_file_name} {
 #                 * -sha_mode  if 1, the list files will be added as well and the IPs will be added to the file rather than to the special ip library.
 #                    The SHA mode should be used when you use the lists to calculate the git SHA, rather than to add the files to the project.
 #
-# @return              a list of 3 dictionaries:
-#                      "libraries" has library name as keys and a list of filenames as values,
-#                      "properties" has as file names as keys and a list of properties as values
-#                       "filesets" has the fileset' names as keys and the list of associated libraries as values.
+# @return         a list of 3 dictionaries:
+#                   "libraries" has library name as keys and a list of filenames as values,
+#                   "properties" has as file names as keys and a list of properties as values
+#                   "filesets" has the fileset' names as keys and the list of associated libraries as values.
 proc ReadListFile {args} {
   if {[IsQuartus]} {
     load_package report
@@ -5109,11 +5505,11 @@ proc ReadListFile {args} {
   }
   # tclint-disable line-length
   set parameters {
-    {lib.arg ""  "The name of the library files will be added to, if not given will be extracted from the file name."}
+    {lib.arg     "" "The name of the library files will be added to, if not given will be extracted from the file name."}
     {fileset.arg "" "The name of the library, from the main list file"}
-    {sha_mode "If set, the list files will be added as well and the IPs will be added to the file rather than to the special IP library. The SHA mode should be used when you use the lists to calculate the git SHA, rather than to add the files to the project."}
-    {print_log "If set, will use PrintFileTree for the VIEW directive"}
-    {indent.arg "" "Used to indent files with the VIEW directive"}
+    {sha_mode       "If set, the list files will be added as well and the IPs will be added to the file rather than to the special IP library. The SHA mode should be used when you use the lists to calculate the git SHA, rather than to add the files to the project."}
+    {print_log      "If set, will use PrintFileTree for the VIEW directive"}
+    {indent.arg  "" "Used to indent files with the VIEW directive"}
   }
   # tclint-enable line-length
   set usage "USAGE: ReadListFile \[options\] <list file> <path>"
@@ -5121,6 +5517,8 @@ proc ReadListFile {args} {
     Msg CriticalWarning "[cmdline::usage $parameters $usage]"
     return
   }
+
+
   set list_file [lindex $args 0]
   set path [lindex $args 1]
   set sha_mode $options(sha_mode)
@@ -5276,6 +5674,9 @@ proc ReadListFile {args} {
               set lib_name "sources.con"
             } elseif {$list_file_ext == ".ipb"} {
               set lib_name "xml.ipb"
+            } elseif { [IsInList $list_file_ext {.src}] && [IsInList $extension {.c .cpp .h .hpp}] } {
+              # Adding Vitis library
+              set lib_name "$library$list_file_ext"
             } else {
               # Other files are stored in the OTHER dictionary from vivado (no library assignment)
               set lib_name "others.src"
@@ -5531,6 +5932,11 @@ proc VIVADO_PATH_PROPERTIES {} {
   return {"\.*\.TCL\.PRE$" "^.*\.TCL\.POST$" "^RQS_FILES$" "^INCREMENTAL\_CHECKPOINT$" "NOC\_SOLUTION\_FILE"}
 }
 
+## @brief Returns a list of Vitis properties that expect a PATH for value
+proc VITIS_PATH_PROPERTIES {} {
+  return {"^HW$" "^XPFM$" "^LINKER-SCRIPT$" "^LIBRARIES$" "^LIBRARY-SEARCH-PATH$"}
+}
+
 ## @brief Write a property configuration file from a dictionary
 #
 #  @param[in]    file_name the configuration file
@@ -5625,7 +6031,7 @@ proc WriteGenerics {mode repo_path design date timee\
   }
 
   # Dealing with project generics in Vivado
-  if {[IsVivado]} {
+  if {[IsVivado] || [IsVitisClassic]} {
     set prj_generics [GenericToSimulatorString [GetGenericsFromConf $design] "Vivado"]
     set generic_string "$prj_generics $generic_string"
   }
@@ -5683,6 +6089,29 @@ proc WriteGenerics {mode repo_path design date timee\
   } elseif {[IsDiamond]} {
     Msg Info "Setting Diamond parameters/generics one by one..."
     prj_impl option -impl Implementation0 HDL_PARAM "$generic_string"
+  } elseif {[IsVitisClassic]} {
+    if {[catch {set ws_apps [app list -dict]}]} { set ws_apps "" }
+
+    foreach app_name [dict keys $ws_apps] {
+      set defined_symbols [app config -name $app_name -get define-compiler-symbols]
+      foreach generic_to_set [split [string trim $generic_string]] {
+        set key [lindex [split $generic_to_set "="] 0]
+        set value [lindex [split $generic_to_set "="] 1]
+        if {[string match "32'h*" $value]} {
+            set value [string map {"32'h" "0x"} $value]
+        }
+
+        foreach symbol [split $defined_symbols ";"] {
+          if {[string match "$key=*" $symbol]} {
+            Msg Debug "Generic $key found in $app_name, removing it..."
+            app config -name $app_name -remove define-compiler-symbols "$symbol"
+          }
+        }
+
+        Msg Info "Setting Vitis parameters/generics for app $app_name: $key=$value"
+        app config -name $app_name define-compiler-symbols "$key=$value"
+      }
+    }
   }
 }
 
