@@ -3937,9 +3937,13 @@ proc InitLauncher {script tcl_path parameters commands argv {custom_commands ""}
   set directive [string toupper [lindex $arg_list 0]]
   set min_n_of_args 0
   set max_n_of_args 2
-  set argument_is_no_project 0
+  set argument_is_no_project 1
 
   switch -regexp -- $directive "$commands"
+
+  if {[IsInList $directive $directives_with_projects 1]} {
+    set argument_is_no_project 0
+  }
 
   if {[IsInList "-help" $option_list] || [IsInList "-?" $option_list] || [IsInList "-h" $option_list]} {
     if {$directive != ""} {
