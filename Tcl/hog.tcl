@@ -4952,7 +4952,7 @@ proc LaunchVitisBuild {project_name {repo_path .} {stage "presynth"}} {
   cd $repo_path
 
   if {[catch {set ws_apps [app list -dict]}]} { set ws_apps "" }
-  lassign [GetRepoVersions [file normalize $repo_path/Top/$proj_name] $repo_path ] commit version  hog_hash hog_ver  top_hash top_ver \
+  lassign [GetRepoVersions [file normalize $repo_path/Top/$project_name] $repo_path ] commit version  hog_hash hog_ver  top_hash top_ver \
            libs hashes vers  cons_ver cons_hash  ext_names ext_hashes  xml_hash xml_ver user_ip_repos user_ip_hashes user_ip_vers
   set this_commit [GetSHA]
   if {$commit == 0 } { set commit $this_commit }
@@ -4968,12 +4968,12 @@ proc LaunchVitisBuild {project_name {repo_path .} {stage "presynth"}} {
   foreach app_name [dict keys $ws_apps] { app build -name $app_name }
 
   if {$stage == "presynth"} {
-    Msg Info "Done building apps for $proj_name..."
+    Msg Info "Done building apps for $project_name..."
     # return
   }
 
-  Msg Info "Evaluating Git sha for $proj_name..."
-  lassign [GetRepoVersions [file normalize ./Top/$proj_name] $repo_path] sha
+  Msg Info "Evaluating Git sha for $project_name..."
+  lassign [GetRepoVersions [file normalize ./Top/$project_name] $repo_path] sha
 
   set describe [GetHogDescribe $sha $repo_path]
   Msg Info "Hog describe set to: $describe"
@@ -4984,7 +4984,7 @@ proc LaunchVitisBuild {project_name {repo_path .} {stage "presynth"}} {
   }
 
   foreach app_name [dict keys $ws_apps] {
-    set main_file "$repo_path/Projects/$proj_name/vitis_classic/$app_name/Release/$app_name.elf"
+    set main_file "$repo_path/Projects/$project_name/vitis_classic/$app_name/Release/$app_name.elf"
     set dst_main [file normalize "$dst_dir/$proj_name\-$app_name\-$describe.elf"]
 
     if {![file exists $main_file]} {

@@ -196,9 +196,9 @@ set parameters {
   {bitstream_only  "If set, only the bitstream will be produced. This assumes implementation was already done. For a Vivado-Vitis\
                     project this command can be used to generate the boot artifacts including the ELF file(s) without running the\
                     full Vivado workflow."}
-  {vivado_only     "If set, and project is vivado-vitis_classic, vitis project will not be created."}
-  {vitis_only      "If set, project is vivado-vitis_classic, and a xsa has been generated, create vitis project."}
-  {xsa.arg      "" "If set, and project is vivado-vitis_classic, use this xsa for creating platforms without a defined hw."}
+  {vivado_only     "If set, and project is vivado-vitis, vitis project will not be created."}
+  {vitis_only      "If set, and project is vivado-vitis create only vitis project. If an xsa is not given, a pre-synth xsa will be created."}
+  {xsa.arg      "" "If set, and project is vivado-vitis, use this xsa for creating platforms without a defined hw."}
   {simset.arg   "" "Simulation sets, separated by commas, to be run."}
   {all             "List all projects, including test projects. Test projects have #test on the second line of hog.conf."}
   {generate        "For IPbus XMLs, it will re create the VHDL address decode files."}

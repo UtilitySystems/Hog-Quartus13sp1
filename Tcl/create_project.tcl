@@ -1031,7 +1031,7 @@ proc CreateProject {args} {
     {simlib_path.arg   "" "Path of simulation libs"}
     {verbose              "If set, launch the script in verbose mode."}
     {xsa.arg           "" "xsa for creating platforms without a defined hw."}
-    {vivado_only          "If set, and project is vivado-vitis_classic, vitis project will not be created."}
+    {vivado_only          "If set, and project is vivado-vitis, vitis project will not be created."}
   }
 
   set usage "Create Vivado/Vitis/ISE/Quartus/Libero/Diamond project.\nUsage: CreateProject \[OPTIONS\] <project> <repository path>\n Options:"
@@ -1068,8 +1068,42 @@ proc CreateProject {args} {
     }
   }
 
+  # Derived variables from now on...
 
-  set proj_dir [file normalize $globalSettings::repo_path/Top/$globalSettings::DESIGN]
+  set build_dir_name "Projects"
+  set globalSettings::group_name [file dirname $globalSettings::DESIGN]
+  set globalSettings::pre_synth_file "pre-synthesis.tcl"
+  set globalSettings::post_synth_file "post-synthesis.tcl"
+  set globalSettings::pre_impl_file "pre-implementation.tcl"
+  set globalSettings::post_impl_file "post-implementation.tcl"
+  set globalSettings::pre_bit_file "pre-bitstream.tcl"
+  set globalSettings::post_bit_file "post-bitstream.tcl"
+  set globalSettings::quartus_post_module_file "quartus-post-module.tcl"
+  set globalSettings::top_path "$globalSettings::repo_path/Top/$globalSettings::DESIGN"
+  set globalSettings::list_path "$globalSettings::top_path/list"
+  set globalSettings::build_dir "$globalSettings::repo_path/$build_dir_name/$globalSettings::DESIGN"
+  set globalSettings::DESIGN [file tail $globalSettings::DESIGN]
+  set globalSettings::top_name [file tail $globalSettings::DESIGN]
+  set globalSettings::top_name [file rootname $globalSettings::top_name]
+  set globalSettings::synth_top_module "top_$globalSettings::top_name"
+  set globalSettings::user_ip_repo ""
+
+  set globalSettings::pre_synth [file normalize "$globalSettings::tcl_path/integrated/$globalSettings::pre_synth_file"]
+  set globalSettings::post_synth [file normalize "$globalSettings::tcl_path/integrated/$globalSettings::post_synth_file"]
+  set globalSettings::pre_impl [file normalize "$globalSettings::tcl_path/integrated/$globalSettings::pre_impl_file"]
+  set globalSettings::post_impl [file normalize "$globalSettings::tcl_path/integrated/$globalSettings::post_impl_file"]
+  set globalSettings::pre_bit [file normalize "$globalSettings::tcl_path/integrated/$globalSettings::pre_bit_file"]
+  set globalSettings::post_bit [file normalize "$globalSettings::tcl_path/integrated/$globalSettings::post_bit_file"]
+  set globalSettings::quartus_post_module [file normalize "$globalSettings::tcl_path/integrated/$globalSettings::quartus_post_module_file"]
+  set globalSettings::LIBERO_MANDATORY_VARIABLES {"FAMILY" "PACKAGE" "DIE" }
+
+  if {$globalSettings::group_name != "."} {
+    set globalSettings::project_name "$globalSettings::group_name/$globalSettings::DESIGN"
+  } else {
+    set globalSettings::project_name "$globalSettings::DESIGN"
+  }
+
+  set proj_dir [file normalize $globalSettings::repo_path/Top/$globalSettings::project_name]
   lassign [GetConfFiles $proj_dir] conf_file sim_file pre_file post_file
 
   set user_repo 0
@@ -1167,35 +1201,6 @@ proc CreateProject {args} {
     set globalSettings::HOG_EXTERNAL_PATH ""
   }
 
-  #Derived variables from now on...
-
-  set build_dir_name "Projects"
-  set globalSettings::group_name [file dirname $globalSettings::DESIGN]
-  set globalSettings::pre_synth_file "pre-synthesis.tcl"
-  set globalSettings::post_synth_file "post-synthesis.tcl"
-  set globalSettings::pre_impl_file "pre-implementation.tcl"
-  set globalSettings::post_impl_file "post-implementation.tcl"
-  set globalSettings::pre_bit_file "pre-bitstream.tcl"
-  set globalSettings::post_bit_file "post-bitstream.tcl"
-  set globalSettings::quartus_post_module_file "quartus-post-module.tcl"
-  set globalSettings::top_path "$globalSettings::repo_path/Top/$globalSettings::DESIGN"
-  set globalSettings::list_path "$globalSettings::top_path/list"
-  set globalSettings::build_dir "$globalSettings::repo_path/$build_dir_name/$globalSettings::DESIGN"
-  set globalSettings::DESIGN [file tail $globalSettings::DESIGN]
-  set globalSettings::top_name [file tail $globalSettings::DESIGN]
-  set globalSettings::top_name [file rootname $globalSettings::top_name]
-  set globalSettings::synth_top_module "top_$globalSettings::top_name"
-  set globalSettings::user_ip_repo ""
-
-  set globalSettings::pre_synth [file normalize "$globalSettings::tcl_path/integrated/$globalSettings::pre_synth_file"]
-  set globalSettings::post_synth [file normalize "$globalSettings::tcl_path/integrated/$globalSettings::post_synth_file"]
-  set globalSettings::pre_impl [file normalize "$globalSettings::tcl_path/integrated/$globalSettings::pre_impl_file"]
-  set globalSettings::post_impl [file normalize "$globalSettings::tcl_path/integrated/$globalSettings::post_impl_file"]
-  set globalSettings::pre_bit [file normalize "$globalSettings::tcl_path/integrated/$globalSettings::pre_bit_file"]
-  set globalSettings::post_bit [file normalize "$globalSettings::tcl_path/integrated/$globalSettings::post_bit_file"]
-  set globalSettings::quartus_post_module [file normalize "$globalSettings::tcl_path/integrated/$globalSettings::quartus_post_module_file"]
-  set globalSettings::LIBERO_MANDATORY_VARIABLES {"FAMILY" "PACKAGE" "DIE" }
-
   set user_hog_file "$globalSettings::repo_path/Top/hog.tcl"
   if {[file exists $user_hog_file]} {
     Msg Info "Sourcing user hog.tcl file..."
@@ -1266,21 +1271,21 @@ proc CreateProject {args} {
   lassign [GetHogFiles \
     -ext_path "$globalSettings::HOG_EXTERNAL_PATH" \
     -list_files ".src,.ext" \
-    "$globalSettings::repo_path/Top/$globalSettings::group_name/$globalSettings::DESIGN/list/" \
+    "$globalSettings::repo_path/Top/$globalSettings::project_name/list/" \
     $globalSettings::repo_path] \
     listLibraries listProperties listSrcSets
   # Get project constraints and properties from list files
   lassign [GetHogFiles \
     -ext_path "$globalSettings::HOG_EXTERNAL_PATH" \
     -list_files ".con" \
-    "$globalSettings::repo_path/Top/$globalSettings::group_name/$globalSettings::DESIGN/list/" \
+    "$globalSettings::repo_path/Top/$globalSettings::project_name/list/" \
     $globalSettings::repo_path] \
     listConstraints listConProperties listConSets
 
   lassign [GetHogFiles \
     -ext_path "$globalSettings::HOG_EXTERNAL_PATH" \
     -list_files ".sim" \
-    "$globalSettings::repo_path/Top/$globalSettings::group_name/$globalSettings::DESIGN/list/" \
+    "$globalSettings::repo_path/Top/$globalSettings::project_name/list/" \
     $globalSettings::repo_path] \
     listSimLibraries listSimProperties listSimSets
 
@@ -1295,7 +1300,7 @@ proc CreateProject {args} {
     set flavour [GetProjectFlavour $globalSettings::DESIGN]
     # Getting all the versions and SHAs of the repository
     lassign [GetRepoVersions \
-      [file normalize $globalSettings::repo_path/Top/$globalSettings::group_name/$globalSettings::DESIGN] \
+      [file normalize $globalSettings::repo_path/Top/$globalSettings::project_name] \
       $globalSettings::repo_path \
       $globalSettings::HOG_EXTERNAL_PATH \
     ] commit version hog_hash hog_ver top_hash top_ver libs hashes vers cons_ver cons_hash ext_names ext_hashes \
@@ -1317,7 +1322,7 @@ proc CreateProject {args} {
     lassign [GetDateAndTime $commit] date timee
     WriteGenerics "create" \
       $globalSettings::repo_path \
-      $globalSettings::group_name/$globalSettings::DESIGN \
+      $globalSettings::project_name \
       $date $timee $commit $version \
       $top_hash $top_ver $hog_hash $hog_ver \
       $cons_ver $cons_hash $libs $vers $hashes \
@@ -1350,7 +1355,7 @@ proc CreateProject {args} {
       }
     }
 
-    set xsct_cmd "xsct $globalSettings::tcl_path/launch.tcl C $xsa_opt -vitis_only $globalSettings::DESIGN"
+    set xsct_cmd "xsct $globalSettings::tcl_path/launch.tcl C $xsa_opt -vitis_only $globalSettings::project_name"
     Msg Info "Running Vitis Classic project creation script with command: $xsct_cmd"
     set ret [catch {exec -ignorestderr {*}$xsct_cmd >@ stdout} result]
     if {$ret != 0} {
