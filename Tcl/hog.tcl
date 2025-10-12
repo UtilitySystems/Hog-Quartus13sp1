@@ -1835,6 +1835,7 @@ proc GenericToSimulatorString {prop_dict target} {
 #
 #  @return[in] a list containing the full path of the hog.conf, sim.conf, pre-creation.tcl, post-creation.tcl and proj.tcl files
 proc GetConfFiles {proj_dir} {
+  Msg Debug "GetConfFiles called with proj_dir=$proj_dir"
   if {![file isdirectory $proj_dir]} {
     Msg Error "$proj_dir is supposed to be the top project directory"
     return -1
@@ -1959,6 +1960,7 @@ proc GetGenericsFromConf {proj_dir} {
   set top_dir "Top/$proj_dir"
   set conf_file "$top_dir/hog.conf"
   set conf_index 0
+  Msg Debug "GetGenericsFromConf called with proj_dir=$proj_dir, top_dir=$top_dir"
 
   if {[file exists $conf_file]} {
     set properties [ReadConf [lindex [GetConfFiles $top_dir] $conf_index]]
@@ -4050,12 +4052,9 @@ proc InitLauncher {script tcl_path parameters commands argv {custom_commands ""}
   }
 
   set project_group [file dirname $project]
+  set project_name $project
   set project [file tail $project]
-  if {$project_group != "."} {
-    set project_name "$project_group/$project"
-  } else {
-    set project_name "$project"
-  }
+  Msg Debug "InitLauncher: project_group=$project_group, project_name=$project_name, project=$project"
 
   return [list $directive $project $project_name $project_group $repo_path $old_path $bin_path $top_path $usage $short_usage $command $cmd [array get options]]
 }
@@ -4947,7 +4946,7 @@ proc LaunchSynthesis {reset do_create run_folder project_name {repo_path .} {ext
 # @param[in] repo_path    The main path of the git repository (Default ".")
 # @param[in] stage        The stage of the build (Default "presynth")
 proc LaunchVitisBuild {project_name {repo_path .} {stage "presynth"}} {
-  set proj_name [file tail $project_name]
+  set proj_name $project_name
   set bin_dir [file normalize "$repo_path/bin"]
 
   cd $repo_path
@@ -4986,7 +4985,7 @@ proc LaunchVitisBuild {project_name {repo_path .} {stage "presynth"}} {
 
   foreach app_name [dict keys $ws_apps] {
     set main_file "$repo_path/Projects/$project_name/vitis_classic/$app_name/Release/$app_name.elf"
-    set dst_main [file normalize "$dst_dir/$proj_name\-$app_name\-$describe.elf"]
+    set dst_main [file normalize "$dst_dir/[file tail $proj_name]\-$app_name\-$describe.elf"]
 
     if {![file exists $main_file]} {
       Msg Error "No Vitis .elf file found. Perhaps there was an issue building it?"

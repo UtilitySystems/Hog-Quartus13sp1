@@ -1088,6 +1088,7 @@ proc CreateProject {args} {
 
   set build_dir_name "Projects"
   set globalSettings::group_name [file dirname $globalSettings::DESIGN]
+  set globalSettings::project_name $globalSettings::DESIGN
   set globalSettings::pre_synth_file "pre-synthesis.tcl"
   set globalSettings::post_synth_file "post-synthesis.tcl"
   set globalSettings::pre_impl_file "pre-implementation.tcl"
@@ -1113,13 +1114,8 @@ proc CreateProject {args} {
   set globalSettings::quartus_post_module [file normalize "$globalSettings::tcl_path/integrated/$globalSettings::quartus_post_module_file"]
   set globalSettings::LIBERO_MANDATORY_VARIABLES {"FAMILY" "PACKAGE" "DIE" }
 
-  if {$globalSettings::group_name != "."} {
-    set globalSettings::project_name "$globalSettings::group_name/$globalSettings::DESIGN"
-  } else {
-    set globalSettings::project_name "$globalSettings::DESIGN"
-  }
-
   set proj_dir [file normalize $globalSettings::repo_path/Top/$globalSettings::project_name]
+  Msg Debug "Calling GetConfFiles with proj_dir=$proj_dir (project_name=$globalSettings::project_name)"
   lassign [GetConfFiles $proj_dir] conf_file sim_file pre_file post_file
 
   set user_repo 0
@@ -1380,5 +1376,5 @@ proc CreateProject {args} {
   }
 
 
-  Msg Info "Project $globalSettings::DESIGN created successfully in [Relative $globalSettings::repo_path $globalSettings::build_dir]."
+  Msg Info "Project $globalSettings::project_name created successfully in [Relative $globalSettings::repo_path $globalSettings::build_dir]."
 }
