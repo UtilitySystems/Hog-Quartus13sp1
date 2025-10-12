@@ -770,7 +770,7 @@ proc CreatePlatform {platform_name platform_conf {xsa ""}} {
 
   set platform_create_options {
     "desc" "hw" "out" "prebuilt" "proc" "arch"
-    "samples" "os" "xpfm" "no-boot-bsp" "rp"
+    "samples" "os" "xpfm" "no-boot-bsp"
   }
 
   Msg Info "Creating platform configuration..."
