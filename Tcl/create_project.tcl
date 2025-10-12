@@ -893,7 +893,7 @@ proc ConfigureApp {app_name app_conf} {
   Msg Info "Configuring app..."
   append app_options " -name $app_name"
 
-  #A sysproj may have been created before, we must remove it
+  # A sysproj may have been created before, we must remove it
   if {[catch {set sys_projs [sysproj list -dict]}]} { set sys_projs "" }
   if {[dict exists $app_name sysproj]} {
     set sys_proj_name [dict get $app_name sysproj]
@@ -909,7 +909,7 @@ proc ConfigureApp {app_name app_conf} {
     }
   }
 
-  #A app may have been created before, we must remove it
+  # An app may have been created before, we must remove it
   if {[catch {set ws_apps [app list -dict]}]} { set ws_apps "" }
   if {[lsearch -exact $ws_apps $app_name] != -1} {
     Msg Info "app $app_name already exists, removing it..."
@@ -956,7 +956,23 @@ proc ConfigureApp {app_name app_conf} {
   }
 
   if {![dict exists $app_name template]} {
-    append app_options " -template \{Empty Application\}"
+    if {[CompareVersions $globalSettings::c_v "2022 1 0"] == -1} {
+      # Check if lang is defined in create_options
+      if {[dict exists $app_create_options "lang"]} {
+        set lang [dict get $app_create_options "lang"]
+        if {[string equal -nocase $lang "C++"] || [string equal -nocase $lang "cpp"]} {
+          append app_options " -template \{Empty Application (C++)\}"
+        } else {
+          append app_options " -template \{Empty Application(C)\}"
+        }
+      } else {
+        # Default to Empty Application if lang is not specified
+        append app_options " -template \{Empty Application(C)\}"
+      }
+    } else {
+      # For newer versions, use the generic template
+      append app_options " -template \{Empty Application\}"
+    }
   }
 
   Msg Info "Creating application \[$app_name\] with options: \{$app_options\}"
@@ -1122,21 +1138,21 @@ proc CreateProject {args} {
     }
 
     if {$conf_version != "0.0.0"} {
-      set a_v [split $actual_version "."]
-      set c_v [split $conf_version "."]
+      set globalSettings::a_v [split $actual_version "."]
+      set globalSettings::c_v [split $conf_version "."]
 
-      if {[llength $a_v] < 2} {
+      if {[llength $globalSettings::a_v] < 2} {
         Msg Error "Couldn't parse IDE version: $actual_version."
-      } elseif {[llength $a_v] == 2} {
-        lappend a_v 0
+      } elseif {[llength $globalSettings::a_v] == 2} {
+        lappend globalSettings::a_v 0
       }
-      if {[llength $c_v] < 2} {
+      if {[llength $globalSettings::c_v] < 2} {
         Msg Error "Wrong version format in hog.conf: $conf_version."
-      } elseif {[llength $c_v] == 2} {
-        lappend c_v 0
+      } elseif {[llength $globalSettings::c_v] == 2} {
+        lappend globalSettings::c_v 0
       }
 
-      set comp [CompareVersions $a_v $c_v]
+      set comp [CompareVersions $globalSettings::a_v $globalSettings::c_v]
       if {$comp == 0} {
         Msg Info "Project version and $ide version match: $conf_version."
       } elseif {$comp == 1} {
@@ -1152,7 +1168,7 @@ proc CreateProject {args} {
     }
 
     if {$globalSettings::vitis_classic == 1} {
-      if {[CompareVersions $a_v "2020 2 0"] == -1 || [CompareVersions $c_v "2020 2 0"] == -1} {
+      if {[CompareVersions $globalSettings::a_v "2020 2 0"] == -1 || [CompareVersions $globalSettings::c_v "2020 2 0"] == -1} {
         Msg Error "Vitis flow is not supported for versions < 2020.2. Please use Vitis 2020.2 or newer." }
     }
 

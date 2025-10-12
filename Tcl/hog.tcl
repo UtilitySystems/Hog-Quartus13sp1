@@ -83,14 +83,15 @@ proc AddHogFiles {libraries properties filesets} {
 
     # Vitis: Check if defined apps have a corresponding source file
     if {[IsVitisClassic]} {
-        if {[catch {set ws_apps [app list -dict]}]} { set ws_apps "" }
-        dict for {app_name app_config} $ws_apps {
-            set app_lib [string tolower "app_$app_name\.src"]
-            if {![IsInList $app_lib $libs_in_fileset 0 1]} {
-                Msg Warning "App '$app_name' exists in workspace but no corresponding sourcefile '$app_lib' found. \
-                  Make sure you have a list file with the correct naming convention: \[app_<app_name>\.src\]"
-            }
+      # TODO: "app list -dict" return wrong configuration parameters for Vitis Classic versions older than 2022.1
+      if {[catch {set ws_apps [app list -dict]}]} { set ws_apps "" }
+      dict for {app_name app_config} $ws_apps {
+        set app_lib [string tolower "app_$app_name\.src"]
+        if {![IsInList $app_lib $libs_in_fileset 0 1]} {
+            Msg Warning "App '$app_name' exists in workspace but no corresponding sourcefile '$app_lib' found. \
+              Make sure you have a list file with the correct naming convention: \[app_<app_name>\.src\]"
         }
+      }
     }
 
     # Loop over libraries in fileset
@@ -4952,7 +4953,7 @@ proc LaunchVitisBuild {project_name {repo_path .} {stage "presynth"}} {
   cd $repo_path
 
   if {[catch {set ws_apps [app list -dict]}]} { set ws_apps "" }
-  lassign [GetRepoVersions [file normalize $repo_path/Top/$project_name] $repo_path ] commit version  hog_hash hog_ver  top_hash top_ver \
+  lassign [GetRepoVersions [file normalize $repo_path/Top/$proj_name] $repo_path ] commit version  hog_hash hog_ver  top_hash top_ver \
            libs hashes vers  cons_ver cons_hash  ext_names ext_hashes  xml_hash xml_ver user_ip_repos user_ip_hashes user_ip_vers
   set this_commit [GetSHA]
   if {$commit == 0 } { set commit $this_commit }
