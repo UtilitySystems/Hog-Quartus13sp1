@@ -69,7 +69,7 @@ set default_commands {
     set do_create 1
   # NAME*: SIMULATION or S
   # DESCRIPTION: Simulate the project, creating it if not existing, unless it is a GHDL simulation.
-  # OPTIONS: check_syntax, ext_path.arg, lib.arg, recreate, simset.arg, verbose
+  # OPTIONS: check_syntax, compile_only, ext_path.arg, lib.arg, recreate, scripts_only, simset.arg, verbose
   }
 
   \^W(ORK(FLOW)?)?$ {#
@@ -193,6 +193,8 @@ set parameters {
   {lib.arg      "" "Simulation library path, compiled or to be compiled"}
   {synth_only      "If set, only the synthesis will be performed."}
   {impl_only       "If set, only the implementation will be performed. This assumes synthesis was already done."}
+  {scripts_only    "If set, the simulation scripts will be generated, but the simulation will not be run."}
+  {compile_only    "If set, the simulation libraries will be compiled, but not run."}
   {bitstream_only  "If set, only the bitstream will be produced. This assumes implementation was already done. For a Vivado-Vitis\
                     project this command can be used to generate the boot artifacts including the ELF file(s) without running the\
                     full Vivado workflow."}
@@ -251,7 +253,7 @@ set do_rtl 0
 set do_implementation 0; set do_synthesis 0; set do_bitstream 0
 set do_create 0; set do_compile 0; set do_simulation 0; set recreate 0
 set do_reset 1; set do_list_all 2; set do_check_syntax 0; set do_vitis_build 0;
-
+set scripts_only 0; set compile_only 0
 ### Hog stand-alone directives ###
 # The following directives are used WITHOUT ever calling the IDE, they are run in tclsh
 # A place holder called new_directive can be followed to add new commands
@@ -543,6 +545,15 @@ if {$options(check_syntax) == 1} {
   set do_check_syntax 1
 }
 
+if {$options(scripts_only) == 1} {
+  set scripts_only 1
+}
+
+if {$options(compile_only) == 1} {
+  set compile_only 1
+}
+
+
 
 if {$options(lib) != ""} {
   set lib_path [file normalize $options(lib)]
@@ -679,7 +690,7 @@ if {$do_bitstream == 1 && ![IsXilinx]} {
 if {$do_simulation == 1} {
   # set simsets $options(simset)
   set simsets [GetSimSets $project_name $repo_path $options(simset)]
-  LaunchSimulation $project_name $lib_path $simsets $repo_path
+  LaunchSimulation $project_name $lib_path $simsets $repo_path $scripts_only $compile_only
 }
 
 

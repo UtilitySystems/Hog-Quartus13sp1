@@ -4593,7 +4593,7 @@ proc GenerateBitstreamOnly {project_name {repo_path .}} {
 # @param[in] lib_path     The path to the simulation libraries
 # @param[in] simsets      The simulation sets to simulate
 # @param[in] repo_path    The main path of the git repository
-proc LaunchSimulation {project_name lib_path simsets {repo_path .}} {
+proc LaunchSimulation {project_name lib_path simsets {repo_path .} {scripts_only 0} {compile_only 0}} {
   if {[IsVivado]} {
     ##################### SIMULATION #######################
     set project [file tail $project_name]
@@ -4604,6 +4604,14 @@ proc LaunchSimulation {project_name lib_path simsets {repo_path .}} {
         lappend simsets_todo $simset
       }
       Msg Info "Will run only the following simulation's sets (if they exist): $simsets_todo"
+    }
+
+    if {$scripts_only == 1} {
+      Msg Info "Only generating simulation scripts, not running simulations..."
+    }
+
+    if {$compile_only == 1} {
+      Msg Info "Only compiling simulation libraries, not running simulations..."
     }
 
     set failed []
@@ -4709,7 +4717,7 @@ proc LaunchSimulation {project_name lib_path simsets {repo_path .}} {
       }
     }
 
-    if {[info exists sim_scripts]} {
+    if {[info exists sim_scripts] && $scripts_only == 0} {
       # Only for modelsim/questasim
       Msg Info "Generating IP simulation targets, if any..."
 
@@ -4738,8 +4746,10 @@ proc LaunchSimulation {project_name lib_path simsets {repo_path .}} {
         Msg Info "\n\n$log\n\n"
         Msg Info "######################  Compilation log ends  ######################"
 
-
-        if {[file exists "./elaborate.sh"]} {
+        if {$compile_only == 1} {
+          continue
+        }
+        if {[file exists "./elaborate.sh"] } {
           set cmd ./elaborate.sh
           Msg Info " ************* Elaborating: $s  ************* "
           lassign [ExecuteRet $cmd] ret log
