@@ -75,10 +75,16 @@
     - if [ -f "./Projects/${PROJECT_NAME}/skip.me" ]; then
         echo "CI disabled for $PROJECT_NAME";
       else
-       if [ -n "${HOG_DEBUG_MODE}" ] && [ "${HOG_DEBUG_MODE}" == '1' ]; then
+        if [ -n "${HOG_DEBUG_MODE}" ] && [ "${HOG_DEBUG_MODE}" == '1' ]; then
           echo "Hog-CI(info) - The simulation workflow will be run in verbose mode.";
         fi;
-        SIM_CMD="./Hog/Do SIMULATE $PROJECT_NAME";
+        if [ -n "$HOG_SIM_ONLY_SCRIPTS" ] && [ "$HOG_SIM_ONLY_SCRIPTS" = '1' ]; then
+          export SIM_ONLY="-scripts_only";
+        end if;
+        if [ -n "$HOG_SIM_COMPILE_ONLY" ] && [ "$HOG_SIM_COMPILE_ONLY" = '1' ]; then
+          export COMPILE_ONLY="-compile_only";
+        end if;
+        SIM_CMD="./Hog/Do SIMULATE $PROJECT_NAME $SIM_ONLY $COMPILE_ONLY";
         if [[ -f $HOG_APPTAINER_IMAGE ]]; then
           echo "apptainer exec -H $PWD $HOG_APPTAINER_IMAGE $SIM_CMD";
           if [[ -n $HOG_APPTAINER_EXTRA_PATH ]]; then
