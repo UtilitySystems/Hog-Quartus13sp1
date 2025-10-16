@@ -125,7 +125,7 @@ set default_commands {
   # OPTIONS: verbose
   }
 
-  \^B(UTTONS)?$ {#
+  \^B(UTTONS)?$ {
     set min_n_of_args -1
     set max_n_of_args 1
     set do_buttons 1
@@ -149,9 +149,8 @@ set default_commands {
   # OPTIONS: dst_dir.arg, verbose
   }
 
-  \^RTL(ANALYSIS)?$ {
+  \^RTL(ANALYSIS)?$ {#
     set do_rtl 1
-  # set argument_is_no_project 1
   # NAME: RTL or RTLANALYSIS
   # DESCRIPTION: Elaborate the RTL analysis report for the chosen project.
   # OPTIONS: check_syntax, recreate, verbose
