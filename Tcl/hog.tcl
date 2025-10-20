@@ -540,7 +540,7 @@ proc ALLOWED_PROPS {} {
     ".do" [list "nosim"] \
     ".udo" [list "nosim"] \
     ".xci" [list "nosynth" "noimpl" "nosim" "locked"] \
-    ".xdc" [list "nosynth" "noimpl"] \
+    ".xdc" [list "nosynth" "noimpl" "scoped_to_ref"] \
     ".tcl" [list "nosynth" "noimpl" "nosim" "source" "qsys" "noadd"\
         "--block-symbol-file" "--clear-output-directory" "--example-design"\
         "--export-qsys-script" "--family" "--greybox" "--ipxact"\
