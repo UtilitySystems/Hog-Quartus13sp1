@@ -4157,6 +4157,19 @@ proc IsTclsh {} {
   return [expr {![IsQuartus] && ![IsXilinx] && ![IsVitisClassic] && ![IsLibero] && ![IsSynplify] && ![IsDiamond]}]
 }
 
+# @brief Find out if the given file is a Verilog or SystemVerilog file
+#
+# @param[in] file  The file to check
+# @param[out] 1 if it's Verilog/SystemVerilog 0 if it's not
+#
+proc IsVerilog {file} {
+  if {[file extension $file] == ".v" || [file extension $file] == ".sv"} {
+    return 1
+  } else {
+    return 0
+  }
+}
+
 ## @brief Find out if the given Xilinx part is a Vesal chip
 #
 # @param[out] 1 if it's Versal 0 if it's not

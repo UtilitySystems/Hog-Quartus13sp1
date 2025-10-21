@@ -60,9 +60,14 @@ proc parse_hdl {f toplib} {
         lappend modules $label:ips.$component
       }
     }
-
   }
 
+  # ---- Verilog ---------
+  if {[IsVerilog $f]} {
+    foreach {full name} [regexp -all -inline {^\s*module\s+(\w+)} $txt] {
+      set module_name $name
+    }
+  }
 
   if {$modules != ""} {
     dict set dep_dict $top_lib.$module_name $modules
