@@ -109,11 +109,11 @@ for executable in "${executables[@]}"; do
 done
 
 if [ "$found" == 1 ]; then
-  export LD_LIBRARY_PATH=$library_path:$LD_LIBRARY_PATH
-  if [ "$found_tcl_lib" == 1 ]; then
-      #This is where init.tcl is located to avoid the initial warning when running tclsh
-      export TCL_LIBRARY=$tcl_library
-  fi
+    export LD_LIBRARY_PATH=$library_path:$LD_LIBRARY_PATH
+        if [ "$found_tcl_lib" == 1 ]; then
+        #This is where init.tcl is located to avoid the initial warning when running tclsh
+        export TCL_LIBRARY=$tcl_library
+    fi
 fi
 
 # printDict Hog_Usr_dict
@@ -123,11 +123,11 @@ if { [[ "$HOG_LOGGER" == "ENABLED" ]] || [[ "$HOG_COLOR" -gt 0 ]]; } || { [[ $(g
     Logger_Init "$*"
     Logger $executable_path $hog_dir/Tcl/launch.tcl "$@"
     Hog_exit
-  else
-    $executable_path $hog_dir/Tcl/launch.tcl "$@"
-    exit $?
-  fi
+    else
+        $executable_path $hog_dir/Tcl/launch.tcl "$@"
+        exit $?
+    fi
 else
-  echo "Error: No IDE executable found in PATH. You need an IDE in your PATH to use Hog." >&2
-  exit 1
+    echo "Error: No IDE executable found in PATH. You need an IDE in your PATH to use Hog." >&2
+    exit 1
 fi

@@ -5746,10 +5746,13 @@ proc ReadListFile {args} {
 #
 # @param[in] base   the path with respect to witch the dst path is calculated
 # @param[in] dst    the path to be calculated with respect to base
+# @param[in] quiet  if 1, does not print warnings when paths are of different types
 #
-proc Relative {base dst} {
+proc Relative {base dst {quiet 0}} {
   if {![string equal [file pathtype $base] [file pathtype $dst]]} {
-    Msg CriticalWarning "Unable to compute relation for paths of different path types: [file pathtype $base] vs. [file pathtype $dst], ($base vs. $dst)"
+    if {$quiet == 0} {
+      Msg CriticalWarning "Unable to compute relation for paths of different path types: [file pathtype $base] vs. [file pathtype $dst], ($base vs. $dst)"
+    }
     return ""
   }
 

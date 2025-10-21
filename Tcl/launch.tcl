@@ -163,6 +163,13 @@ set default_commands {
   # OPTIONS: verbose
   }
 
+  \^HIE(RARCHY)?$ {#
+    set do_hierarchy 1
+  # NAME: HIERARCHY or HIE
+  # DESCRIPTION: Print the design hierarchy for the chosen project.
+  # OPTIONS: ext_path.arg, output.arg, verbose
+  }
+
   default {
     if {$directive != ""} {
       Msg Status "ERROR: Unknown directive $directive.\n\n"
@@ -204,6 +211,7 @@ set parameters {
   {all             "List all projects, including test projects. Test projects have #test on the second line of hog.conf."}
   {generate        "For IPbus XMLs, it will re create the VHDL address decode files."}
   {dst_dir.arg  "" "For reports, IPbus XMLs, set the destination folder (default is in the ./bin folder)."}
+  {output.arg   "" "For hierarchy, set the output file (default is console)."}
   {verbose         "If set, launch the script in verbose mode"}
 }
 
@@ -244,7 +252,9 @@ if {$options(verbose) == 1} {
 }
 # printDebugMode
 # Msg Info "Number of jobs set to $options(njobs)."
-
+if {$options(output) != ""} {
+  set output_path $options(output)
+}
 
 
 ######## DEFAULTS #########
@@ -264,6 +274,7 @@ set do_buttons 0
 set do_check_list_files 0
 set do_compile_lib 0
 set do_sigasi 0
+set do_hierarchy 0
 
 Msg Debug "Looking for a $directive in : $default_commands $custom_commands"
 switch -regexp -- $directive "$default_commands $custom_commands"
@@ -354,6 +365,17 @@ if {$cmd == -1} {
     GetHogFiles -print_log -list_files {.src,.con,.sim,.ext,.ipb} $proj_list_dir $repo_path
     Msg Status "  "
     Msg Info "All Done."
+    exit 0
+  }
+
+  if {$do_hierarchy == 1} {
+    source $tcl_path/utils/hierarchy.tcl
+    set proj_dir $repo_path/Top/$project_name
+    set proj_list_dir $repo_path/Top/$project_name/list
+    lassign [GetHogFiles -ext_path $ext_path \
+        -list_files ".src,.ext" $proj_list_dir $repo_path]\
+        listLibraries listProperties listSrcSets
+    Hierarchy $listProperties $listLibraries $repo_path $output_path
     exit 0
   }
 
