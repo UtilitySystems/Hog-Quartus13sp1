@@ -44,7 +44,7 @@ set default_commands {
     set recreate 1
   # NAME*: CREATE or C
   # DESCRIPTION: Create the project, replace it if already existing.
-  # OPTIONS: ext_path.arg, lib.arg, verbose
+  # OPTIONS: ext_path.arg, lib.arg, vivado_only, verbose
   }
 
   \^I(MPL(EMENT(ATION)?)?)?$ {#
@@ -69,7 +69,7 @@ set default_commands {
     set do_create 1
   # NAME*: SIMULATION or S
   # DESCRIPTION: Simulate the project, creating it if not existing, unless it is a GHDL simulation.
-  # OPTIONS: check_syntax, ext_path.arg, lib.arg, recreate, simset.arg, verbose
+  # OPTIONS: check_syntax, compile_only, ext_path.arg, lib.arg, recreate, scripts_only, simset.arg, verbose
   }
 
   \^W(ORK(FLOW)?)?$ {#
@@ -77,9 +77,10 @@ set default_commands {
     set do_synthesis 1
     set do_bitstream 1
     set do_compile 1
+    set do_vitis_build 0
   # NAME*: WORKFLOW or W
   # DESCRIPTION: Runs the full workflow, creates the project if not existing.
-  # OPTIONS: check_syntax, ext_path.arg, impl_only, njobs.arg, no_bitstream, recreate, synth_only, verbose
+  # OPTIONS: check_syntax, ext_path.arg, impl_only, bitstream_only, njobs.arg, no_bitstream, recreate, synth_only, vitis_only, xsa.arg verbose
   }
 
   \^(CREATEWORKFLOW|CW)?$ {#
@@ -88,9 +89,10 @@ set default_commands {
     set do_bitstream 1
     set do_compile 1
     set recreate 1
+    set do_vitis_build 1
   # NAME: CREATEWORKFLOW or CW
   # DESCRIPTION: Creates the project -even if existing- and launches the complete workflow.
-  # OPTIONS: check_syntax, ext_path.arg, njobs.arg, no_bitstream, synth_only, verbose
+  # OPTIONS: check_syntax, ext_path.arg, njobs.arg, no_bitstream, synth_only, vivado_only, vitis_only, xsa.arg verbose
   }
 
   \^(CHECKSYNTAX|CS)?$ {#proj
@@ -123,7 +125,7 @@ set default_commands {
   # OPTIONS: verbose
   }
 
-  \^B(UTTONS)?$ {#
+  \^B(UTTONS)?$ {
     set min_n_of_args -1
     set max_n_of_args 1
     set do_buttons 1
@@ -145,6 +147,13 @@ set default_commands {
   # NAME: COMPSIMLIB or COMPSIM
   # DESCRIPTION: Compiles the simulation library for the chosen simulator with Vivado.
   # OPTIONS: dst_dir.arg, verbose
+  }
+
+  \^RTL(ANALYSIS)?$ {#
+    set do_rtl 1
+  # NAME: RTL or RTLANALYSIS
+  # DESCRIPTION: Elaborate the RTL analysis report for the chosen project.
+  # OPTIONS: check_syntax, recreate, verbose
   }
 
   \^SIG(ASI)?$ {#
@@ -182,7 +191,15 @@ set parameters {
   {ext_path.arg "" "Sets the absolute path for the external libraries."}
   {lib.arg      "" "Simulation library path, compiled or to be compiled"}
   {synth_only      "If set, only the synthesis will be performed."}
-  {impl_only       "If set, only the implementation will be performed. This assumes synthesis should was already done."}
+  {impl_only       "If set, only the implementation will be performed. This assumes synthesis was already done."}
+  {scripts_only    "If set, the simulation scripts will be generated, but the simulation will not be run."}
+  {compile_only    "If set, the simulation libraries will be compiled, but not run."}
+  {bitstream_only  "If set, only the bitstream will be produced. This assumes implementation was already done. For a Vivado-Vitis\
+                    project this command can be used to generate the boot artifacts including the ELF file(s) without running the\
+                    full Vivado workflow."}
+  {vivado_only     "If set, and project is vivado-vitis, vitis project will not be created."}
+  {vitis_only      "If set, and project is vivado-vitis create only vitis project. If an xsa is not given, a pre-synth xsa will be created."}
+  {xsa.arg      "" "If set, and project is vivado-vitis, use this xsa for creating platforms without a defined hw."}
   {simset.arg   "" "Simulation sets, separated by commas, to be run."}
   {all             "List all projects, including test projects. Test projects have #test on the second line of hog.conf."}
   {generate        "For IPbus XMLs, it will re create the VHDL address decode files."}
@@ -231,10 +248,11 @@ if {$options(verbose) == 1} {
 
 
 ######## DEFAULTS #########
+set do_rtl 0
 set do_implementation 0; set do_synthesis 0; set do_bitstream 0
 set do_create 0; set do_compile 0; set do_simulation 0; set recreate 0
-set do_reset 1; set do_list_all 2; set do_check_syntax 0
-
+set do_reset 1; set do_list_all 2; set do_check_syntax 0; set do_vitis_build 0;
+set scripts_only 0; set compile_only 0
 ### Hog stand-alone directives ###
 # The following directives are used WITHOUT ever calling the IDE, they are run in tclsh
 # A place holder called new_directive can be followed to add new commands
@@ -460,9 +478,13 @@ if {[IsLibero]} {
   set run_folder [file normalize "$repo_path/Projects/$project_name/"]
 }
 
-#Only for quartus, not used otherwise
+# Only for quartus, not used otherwise
 set project_path [file normalize "$repo_path/Projects/$project_name/"]
 
+# Get IDE name from project config file
+set proj_conf [ProjectExists $project_name $repo_path]
+set ide_name_and_ver [string tolower [GetIDEFromConf $proj_conf]]
+set ide_name [lindex [regexp -all -inline {\S+} $ide_name_and_ver] 0]
 
 if {$options(no_bitstream) == 1} {
   set do_bitstream 0
@@ -490,6 +512,30 @@ if {$options(impl_only) == 1} {
 }
 
 
+if {$options(vitis_only) == 1 || $ide_name eq "vitis_classic"} {
+  set do_vitis_build 1
+  set do_implementation 0
+  set do_synthesis 0
+  set do_bitstream 0
+  set do_create 0
+  set do_compile 0
+}
+
+if {$options(bitstream_only) == 1} {
+  set do_bitstream_only 1
+  set do_bitstream 0
+  set do_implementation 0
+  set do_synthesis 0
+  set do_create 0
+  set do_compile 0
+} else {
+  set do_bitstream_only 0
+}
+
+if {$options(vivado_only) == 1} {
+  set do_vitis_build 0
+}
+
 if {$options(no_reset) == 1} {
   set do_reset 0
 }
@@ -497,6 +543,15 @@ if {$options(no_reset) == 1} {
 if {$options(check_syntax) == 1} {
   set do_check_syntax 1
 }
+
+if {$options(scripts_only) == 1} {
+  set scripts_only 1
+}
+
+if {$options(compile_only) == 1} {
+  set compile_only 1
+}
+
 
 
 if {$options(lib) != ""} {
@@ -526,6 +581,10 @@ if {[IsISE]} {
 } elseif {[IsVivado]} {
   cd $tcl_path
   set project_file [file normalize $repo_path/Projects/$project_name/$project.xpr]
+} elseif {[IsVitisClassic]} {
+  cd $tcl_path
+  set project_file [file normalize $repo_path/Projects/$project_name/vitis_classic/.metadata/]
+  Msg Info "Setting project file for Vitis Classic project $project_name to $project_file"
 } elseif {[IsQuartus]} {
   if {[catch {package require ::quartus::project} ERROR]} {
     Msg Error "$ERROR\n Can not find package ::quartus::project"
@@ -553,11 +612,17 @@ if {[file exists $project_file]} {
 
 if {($proj_found == 0 || $recreate == 1)} {
   Msg Info "Creating (possibly replacing) the project $project_name..."
+  Msg Debug "launch.tcl: calling GetConfFiles with $repo_path/Top/$project_name"
   lassign [GetConfFiles $repo_path/Top/$project_name] conf sim pre post
 
   if {[file exists $conf]} {
-    #Still not sure of the difference between project and project_name
-    CreateProject -simlib_path $lib_path $project_name $repo_path
+    # Still not sure of the difference between project and project_name
+    if {$options(vivado_only) == 1} {
+      CreateProject -simlib_path $lib_path -xsa $options(xsa) -vivado_only $project_name $repo_path
+    } else {
+      CreateProject -simlib_path $lib_path -xsa $options(xsa) $project_name $repo_path
+    }
+    Msg Info "Done creating project $project_name."
   } else {
     Msg Error "Project $project_name is incomplete: no hog.conf file found, please create one..."
   }
@@ -566,7 +631,15 @@ if {($proj_found == 0 || $recreate == 1)} {
   if {[IsXilinx]} {
     file mkdir "$repo_path/Projects/$project_name/$project.gen/sources_1"
   }
-  OpenProject $project_file $repo_path
+
+  if {[IsVitisClassic]} {
+    set vitis_workspace [file normalize $repo_path/Projects/$project_name/vitis_classic/]
+    Msg Info "Setting workspace to $vitis_workspace"
+    setws $vitis_workspace
+
+  } else {
+    OpenProject $project_file $repo_path
+  }
 }
 
 
@@ -574,6 +647,24 @@ if {($proj_found == 0 || $recreate == 1)} {
 if {$do_check_syntax == 1} {
   Msg Info "Checking syntax for project $project_name..."
   CheckSyntax $project_name $repo_path $project_file
+}
+
+
+######### RTL ANALYSIS ########
+if {$do_rtl == 1} {
+  LaunchRTLAnalysis
+}
+
+if {$do_vitis_build == 1} {
+  if {[IsVitisClassic]} {
+    LaunchVitisBuild $project_name $repo_path
+  } else {
+    set xsct_cmd "xsct $tcl_path/launch.tcl W -vitis_only $project_name"
+    set ret [catch {exec -ignorestderr {*}$xsct_cmd >@ stdout} result]
+    if {$ret != 0} {
+      Msg Error "xsct (vitis classic) returned an error state."
+    }
+  }
 }
 
 ######### LaunchSynthesis ########
@@ -585,6 +676,11 @@ if {$do_implementation == 1} {
   LaunchImplementation $do_reset $do_create $run_folder $project_name $repo_path $options(njobs) $do_bitstream
 }
 
+if {$do_bitstream_only == 1 && [IsXilinx]} {
+  GenerateBitstreamOnly $project_name $repo_path
+} elseif {$do_bitstream_only == 1 && ![IsXilinx]} {
+  Msg Error "Bitstream only option is not supported for this IDE."
+}
 
 if {$do_bitstream == 1 && ![IsXilinx]} {
   GenerateBitstream $run_folder $repo_path $options(njobs)
@@ -593,7 +689,7 @@ if {$do_bitstream == 1 && ![IsXilinx]} {
 if {$do_simulation == 1} {
   # set simsets $options(simset)
   set simsets [GetSimSets $project_name $repo_path $options(simset)]
-  LaunchSimulation $project_name $lib_path $simsets $repo_path
+  LaunchSimulation $project_name $lib_path $simsets $repo_path $scripts_only $compile_only
 }
 
 

@@ -65,6 +65,7 @@ namespace eval globalSettings {
   variable synth_top_module
   variable user_ip_repo
 
+  variable vitis_classic
   variable pre_synth
   variable post_synth
   variable pre_impl
@@ -156,6 +157,11 @@ proc InitProject {} {
     prj_project new -name [file tail $globalSettings::DESIGN] -dev $globalSettings::DEVICE -synthesis $globalSettings::SYNTHESIS_TOOL
     cd $old_dir
     ConfigureProperties
+  } elseif {[IsVitisClassic]} {
+    if {[file exists $globalSettings::build_dir/vitis_classic]} {
+      file delete -force $globalSettings::build_dir/vitis_classic
+    }
+    setws $globalSettings::build_dir/vitis_classic
   } else {
     puts "Creating project for $globalSettings::DESIGN part $globalSettings::PART"
     puts "Configuring project settings:"
@@ -726,6 +732,266 @@ proc ConfigureProperties {} {
   cd $cur_dir
 }
 
+
+proc ConfigurePlatforms {{xsa ""}} {
+  dict for {key value} [dict filter $globalSettings::PROPERTIES key {platform:*}] {
+    set value_lower [dict create]
+    dict for {vkey vvalue} $value {
+      dict set value_lower [string tolower $vkey] $vvalue
+    }
+    dict set platforms $key $value_lower
+  }
+
+  set platforms2 [GetPlatformsFromProps $globalSettings::PROPERTIES 0 1]
+  Msg Info "Platform Names: [GetPlatformsFromProps $globalSettings::PROPERTIES 1 1]"
+
+  dict for {key value} $platforms2 {
+    Msg Info "Key: $key, Value: $value"
+  }
+
+  if {[dict size $platforms] == 0} {
+    Msg Info "No platforms found in the configuration file"
+    return
+  }
+
+  dict for {platform_key platform_config} $platforms {
+    Msg Info "Found platform with key: $platform_key with configuration: $platform_config"
+    if {[regexp {^platform:(.+)$} $platform_key -> platform_name]} {
+      set platform_name [string trim $platform_name]
+      Msg Info "Configuring platform: $platform_name"
+      CreatePlatform $platform_name $platform_config $xsa
+    } else {
+      Msg Warning "Invalid platform key format: $platform_key. Expected format: platform:<name>"
+    }
+  }
+}
+
+proc CreatePlatform {platform_name platform_conf {xsa ""}} {
+
+  set platform_create_options {
+    "desc" "hw" "out" "prebuilt" "proc" "arch"
+    "samples" "os" "xpfm" "no-boot-bsp"
+  }
+
+  Msg Info "Creating platform configuration..."
+  append platform_options " -name $platform_name"
+
+  # Remove existing platform if it exists
+  if {[catch {set ws_platforms [platform list -dict]}]} { set ws_platforms "" }
+  if {[lsearch -exact $ws_platforms $platform_name] != -1} {
+    Msg Info "Platform $platform_name already exists, removing it..."
+    platform remove $platform_name
+  }
+
+  dict for {p v} $platform_conf {
+    if {[IsInList [string toupper $p] [VITIS_PATH_PROPERTIES] 1]} {
+
+      if {[IsRelativePath $v] == 1} {
+        set v "$globalSettings::repo_path/$v"
+      }
+
+      if {[file exists $v]} {
+        if {$p == "hw"} {
+          set xsa $v
+        }
+      } else {
+        Msg Warning "Impossible to set property $p to $v. File is missing"
+        continue;
+      }
+    }
+
+    set p_lower [string tolower $p]
+    if {[IsInList $p_lower $platform_create_options]} {
+      append platform_options " -$p_lower $v"
+    } else {
+      if {$p_lower ne "bif"} {
+        Msg Warning "Attempting to use unknown platform option: $p_lower"
+        append platform_options " -$p_lower $v"
+      }
+    }
+  }
+
+
+  # If hw is not in platform conf, use vivado presynth xsa
+  if {![dict exists $platform_conf hw]} {
+    set xsa "$globalSettings::build_dir/$globalSettings::DESIGN-presynth.xsa"
+    set platform_options "$platform_options -hw $xsa"
+  } else {
+    set platform_options "$platform_options"
+  }
+
+
+  Msg Info "Opening hardware design to check if proc to cell mapping needs to be extracted for soft processors..."
+  hsi::open_hw_design $xsa
+
+  set proc_cells [hsi::get_cells -filter { IP_TYPE == "PROCESSOR" }]
+  set proc_map_file [open "$globalSettings::build_dir/vitis_classic/$platform_name.PROC_MAP" "w"]
+
+  foreach proc $proc_cells {
+    # If soft processor, save mapping from proc to cell to be used later when updating mem
+    Msg Debug "Processor found in xsa: $proc"
+    if {[regexp -nocase {microblaze|risc} $proc]} {
+      Msg Info "Extracting processor cells for soft processor: $proc"
+      set proc_hier_name [hsi::get_property HIER_NAME $proc]
+      set proc_address_tag [hsi::get_property ADDRESS_TAG $proc]
+
+      if {$proc_address_tag eq ""} {
+        Msg Warning "Processor $proc ($proc_hier_name) does not have an ADDRESS_TAG property set. \
+        This may cause issues when configuring the platform."
+      } else {
+        set proc_map_entry "$proc_hier_name $proc_address_tag"
+        puts $proc_map_file "$proc_map_entry\n"
+      }
+    }
+  }
+
+  hsi::close_hw_design [hsi::current_hw_design]
+  close $proc_map_file
+
+
+  Msg Info "Creating platform \[$platform_name\] with options: \{$platform_options\}"
+  set plat_create "platform create $platform_options"
+  eval $plat_create
+  platform active $platform_name
+  platform generate
+}
+
+
+proc ConfigureApps {} {
+  set apps [dict filter $globalSettings::PROPERTIES key {app:*}]
+
+  if {[dict size $apps] == 0} {
+    Msg Info "No apps found in the configuration file"
+    return
+  }
+
+  dict for {app_key app_config} $apps {
+    Msg Info "Found app with key: $app_key with configuration: $app_config"
+    if {[regexp {^app:(.+)$} $app_key -> app_name]} {
+      set app_name [string trim $app_name]
+      Msg Info "Configuring app: $app_name"
+      ConfigureApp $app_name $app_config
+    } else {
+      Msg Warning "Invalid app key format: $app_key. Expected format: app:<name>"
+    }
+  }
+}
+
+proc ConfigureApp {app_name app_conf} {
+
+  set create_options {
+    "platform" "domain" "sysproj" "hw"
+    "proc" "template" "os" "lang" "arch" "name"
+  }
+
+  set conf_options {
+    "assembler-flags" "build-config" "compiler-misc" "compiler-optimization"
+    "define-compiler-symbols" "include-path" "libraries" "library-search-path"
+    "linker-misc" "linker-script" "undef-compiler-symbols"
+  }
+
+  Msg Info "Configuring app..."
+  append app_options " -name $app_name"
+
+  # A sysproj may have been created before, we must remove it
+  if {[catch {set sys_projs [sysproj list -dict]}]} { set sys_projs "" }
+  if {[dict exists $app_name sysproj]} {
+    set sys_proj_name [dict get $app_name sysproj]
+    if {[lsearch -exact $sys_projs "Name $sys_proj_name"] != -1} {
+      Msg Info "Removing $sys_proj_name..."
+      sysproj remove $sys_proj_name
+    }
+  } else {
+    set sys_proj_name "$app_name\_system"
+    if {[lsearch -exact $sys_projs "Name $sys_proj_name"] != -1} {
+      Msg Info "Removing $sys_proj_name..."
+      sysproj remove $sys_proj_name
+    }
+  }
+
+  # An app may have been created before, we must remove it
+  if {[catch {set ws_apps [app list -dict]}]} { set ws_apps "" }
+  if {[lsearch -exact $ws_apps $app_name] != -1} {
+    Msg Info "app $app_name already exists, removing it..."
+    app remove $app_name
+  }
+
+  set app_create_options [dict create]
+  set app_conf_options [dict create]
+
+
+  dict for {p v} $app_conf {
+    set p_lower [string tolower $p]
+
+    if {[IsInList [string toupper $p] [VITIS_PATH_PROPERTIES] 1]} {
+      if {[IsRelativePath $v] == 1} {
+        set v "$globalSettings::repo_path/$v"
+      }
+      if {[file exists $v]} {
+        set v $globalSettings::repo_path/$v
+      } else {
+        Msg Warning "Impossible to set property $p to $v. File is missing"
+        continue
+      }
+    }
+
+    if {[IsInList $p_lower $create_options]} {
+      Msg Info "$p_lower is in create options"
+      dict append app_create_options $p_lower $v
+    } elseif {[IsInList $p_lower $conf_options]} {
+      Msg Info "$p_lower is in conf options"
+      dict append app_conf_options $p_lower $v
+    } else {
+      Msg Warning "Unknown app option: $p_lower"
+    }
+  }
+
+
+  dict for {p v} $app_create_options {
+    if {[string equal $p "platform"]} {
+      Msg Info "Setting App $app_name platform to $v"
+      platform active $v
+    }
+    append app_options " -$p $v"
+  }
+
+  if {![dict exists $app_name template]} {
+    if {[CompareVersions $globalSettings::c_v "2022 1 0"] == -1} {
+      # Check if lang is defined in create_options
+      if {[dict exists $app_create_options "lang"]} {
+        set lang [dict get $app_create_options "lang"]
+        if {[string equal -nocase $lang "C++"] || [string equal -nocase $lang "cpp"]} {
+          append app_options " -template \{Empty Application (C++)\}"
+        } else {
+          append app_options " -template \{Empty Application(C)\}"
+        }
+      } else {
+        # Default to Empty Application if lang is not specified
+        append app_options " -template \{Empty Application(C)\}"
+      }
+    } else {
+      # For newer versions, use the generic template
+      append app_options " -template \{Empty Application\}"
+    }
+  }
+
+  Msg Info "Creating application \[$app_name\] with options: \{$app_options\}"
+  set app_create "app create $app_options"
+  eval $app_create
+  app config -name $app_name -set build-config Release
+
+  # App config options
+  dict for {p v} $app_conf_options {
+    Msg Info "Configuring app option $p to $v"
+    app config -name $app_name -set $p $v
+  }
+}
+
+
+proc AddAppFiles {} {
+  AddHogFiles {*}[GetHogFiles -list_files {.src,.header} -ext_path $globalSettings::HOG_EXTERNAL_PATH $globalSettings::list_path $globalSettings::repo_path ]
+}
+
 ## @brief upgrade IPs in the project and copy them from HOG_IP_PATH if defined
 #
 proc ManageIPs {} {
@@ -778,11 +1044,13 @@ proc CreateProject {args} {
     return
   }
   set parameters {
-    {simlib_path.arg  "" "Path of simulation libs"}
-    {verbose "If set, launch the script in verbose mode."}
+    {simlib_path.arg   "" "Path of simulation libs"}
+    {verbose              "If set, launch the script in verbose mode."}
+    {xsa.arg           "" "xsa for creating platforms without a defined hw."}
+    {vivado_only          "If set, and project is vivado-vitis, vitis project will not be created."}
   }
 
-  set usage "Create Vivado/ISE/Quartus/Libero/Diamond project.\nUsage: CreateProject \[OPTIONS\] <project> <repository path>\n Options:"
+  set usage "Create Vivado/Vitis/ISE/Quartus/Libero/Diamond project.\nUsage: CreateProject \[OPTIONS\] <project> <repository path>\n Options:"
 
   if {[catch {array set options [cmdline::getoptions args $parameters $usage]}] || [llength $args] < 2 || [lindex $args 0] eq ""} {
     Msg Info [cmdline::usage $parameters $usage]
@@ -816,8 +1084,38 @@ proc CreateProject {args} {
     }
   }
 
+  # Derived variables from now on...
 
-  set proj_dir [file normalize $globalSettings::repo_path/Top/$globalSettings::DESIGN]
+  set build_dir_name "Projects"
+  set globalSettings::group_name [file dirname $globalSettings::DESIGN]
+  set globalSettings::project_name $globalSettings::DESIGN
+  set globalSettings::pre_synth_file "pre-synthesis.tcl"
+  set globalSettings::post_synth_file "post-synthesis.tcl"
+  set globalSettings::pre_impl_file "pre-implementation.tcl"
+  set globalSettings::post_impl_file "post-implementation.tcl"
+  set globalSettings::pre_bit_file "pre-bitstream.tcl"
+  set globalSettings::post_bit_file "post-bitstream.tcl"
+  set globalSettings::quartus_post_module_file "quartus-post-module.tcl"
+  set globalSettings::top_path "$globalSettings::repo_path/Top/$globalSettings::DESIGN"
+  set globalSettings::list_path "$globalSettings::top_path/list"
+  set globalSettings::build_dir "$globalSettings::repo_path/$build_dir_name/$globalSettings::DESIGN"
+  set globalSettings::DESIGN [file tail $globalSettings::DESIGN]
+  set globalSettings::top_name [file tail $globalSettings::DESIGN]
+  set globalSettings::top_name [file rootname $globalSettings::top_name]
+  set globalSettings::synth_top_module "top_$globalSettings::top_name"
+  set globalSettings::user_ip_repo ""
+
+  set globalSettings::pre_synth [file normalize "$globalSettings::tcl_path/integrated/$globalSettings::pre_synth_file"]
+  set globalSettings::post_synth [file normalize "$globalSettings::tcl_path/integrated/$globalSettings::post_synth_file"]
+  set globalSettings::pre_impl [file normalize "$globalSettings::tcl_path/integrated/$globalSettings::pre_impl_file"]
+  set globalSettings::post_impl [file normalize "$globalSettings::tcl_path/integrated/$globalSettings::post_impl_file"]
+  set globalSettings::pre_bit [file normalize "$globalSettings::tcl_path/integrated/$globalSettings::pre_bit_file"]
+  set globalSettings::post_bit [file normalize "$globalSettings::tcl_path/integrated/$globalSettings::post_bit_file"]
+  set globalSettings::quartus_post_module [file normalize "$globalSettings::tcl_path/integrated/$globalSettings::quartus_post_module_file"]
+  set globalSettings::LIBERO_MANDATORY_VARIABLES {"FAMILY" "PACKAGE" "DIE" }
+
+  set proj_dir [file normalize $globalSettings::repo_path/Top/$globalSettings::project_name]
+  Msg Debug "Calling GetConfFiles with proj_dir=$proj_dir (project_name=$globalSettings::project_name)"
   lassign [GetConfFiles $proj_dir] conf_file sim_file pre_file post_file
 
   set user_repo 0
@@ -825,25 +1123,32 @@ proc CreateProject {args} {
     Msg Info "Parsing configuration file $conf_file..."
     SetGlobalVar PROPERTIES [ReadConf $conf_file]
 
-    #Checking Vivado/Quartus/ISE/Libero version
+    # Checking Vivado/Vitis/Quartus/ISE/Libero version
     set actual_version [GetIDEVersion]
     lassign [GetIDEFromConf $conf_file] ide conf_version
+    if {([string tolower $ide] eq "vivado_vitis_classic") && ($options(vivado_only) != 1)} {
+      puts "Vitis classic detected, setting globalSettings::vitis_classic to 1"
+      set globalSettings::vitis_classic 1
+    } else {
+      set globalSettings::vitis_classic 0
+    }
+
     if {$conf_version != "0.0.0"} {
-      set a_v [split $actual_version "."]
-      set c_v [split $conf_version "."]
+      set globalSettings::a_v [split $actual_version "."]
+      set globalSettings::c_v [split $conf_version "."]
 
-      if {[llength $a_v] < 2} {
+      if {[llength $globalSettings::a_v] < 2} {
         Msg Error "Couldn't parse IDE version: $actual_version."
-      } elseif {[llength $a_v] == 2} {
-        lappend a_v 0
+      } elseif {[llength $globalSettings::a_v] == 2} {
+        lappend globalSettings::a_v 0
       }
-      if {[llength $c_v] < 2} {
+      if {[llength $globalSettings::c_v] < 2} {
         Msg Error "Wrong version format in hog.conf: $conf_version."
-      } elseif {[llength $c_v] == 2} {
-        lappend c_v 0
+      } elseif {[llength $globalSettings::c_v] == 2} {
+        lappend globalSettings::c_v 0
       }
 
-      set comp [CompareVersions $a_v $c_v]
+      set comp [CompareVersions $globalSettings::a_v $globalSettings::c_v]
       if {$comp == 0} {
         Msg Info "Project version and $ide version match: $conf_version."
       } elseif {$comp == 1} {
@@ -857,6 +1162,13 @@ proc CreateProject {args} {
       Msg CriticalWarning "No version found in the first line of $conf_file. \
       It is HIGHLY recommended to replace the first line of $conf_file with: \#$ide $actual_version"
     }
+
+    if {$globalSettings::vitis_classic == 1} {
+      if {[CompareVersions $globalSettings::a_v "2020 2 0"] == -1 || [CompareVersions $globalSettings::c_v "2020 2 0"] == -1} {
+        Msg Error "Vitis flow is not supported for versions < 2020.2. Please use Vitis 2020.2 or newer." }
+    }
+
+
     if {[dict exists $globalSettings::PROPERTIES main]} {
       set main [dict get $globalSettings::PROPERTIES main]
       dict for {p v} $main {
@@ -901,35 +1213,6 @@ proc CreateProject {args} {
     set globalSettings::HOG_EXTERNAL_PATH ""
   }
 
-  #Derived variables from now on...
-
-  set build_dir_name "Projects"
-  set globalSettings::group_name [file dirname $globalSettings::DESIGN]
-  set globalSettings::pre_synth_file "pre-synthesis.tcl"
-  set globalSettings::post_synth_file "post-synthesis.tcl"
-  set globalSettings::pre_impl_file "pre-implementation.tcl"
-  set globalSettings::post_impl_file "post-implementation.tcl"
-  set globalSettings::pre_bit_file "pre-bitstream.tcl"
-  set globalSettings::post_bit_file "post-bitstream.tcl"
-  set globalSettings::quartus_post_module_file "quartus-post-module.tcl"
-  set globalSettings::top_path "$globalSettings::repo_path/Top/$globalSettings::DESIGN"
-  set globalSettings::list_path "$globalSettings::top_path/list"
-  set globalSettings::build_dir "$globalSettings::repo_path/$build_dir_name/$globalSettings::DESIGN"
-  set globalSettings::DESIGN [file tail $globalSettings::DESIGN]
-  set globalSettings::top_name [file tail $globalSettings::DESIGN]
-  set globalSettings::top_name [file rootname $globalSettings::top_name]
-  set globalSettings::synth_top_module "top_$globalSettings::top_name"
-  set globalSettings::user_ip_repo ""
-
-  set globalSettings::pre_synth [file normalize "$globalSettings::tcl_path/integrated/$globalSettings::pre_synth_file"]
-  set globalSettings::post_synth [file normalize "$globalSettings::tcl_path/integrated/$globalSettings::post_synth_file"]
-  set globalSettings::pre_impl [file normalize "$globalSettings::tcl_path/integrated/$globalSettings::pre_impl_file"]
-  set globalSettings::post_impl [file normalize "$globalSettings::tcl_path/integrated/$globalSettings::post_impl_file"]
-  set globalSettings::pre_bit [file normalize "$globalSettings::tcl_path/integrated/$globalSettings::pre_bit_file"]
-  set globalSettings::post_bit [file normalize "$globalSettings::tcl_path/integrated/$globalSettings::post_bit_file"]
-  set globalSettings::quartus_post_module [file normalize "$globalSettings::tcl_path/integrated/$globalSettings::quartus_post_module_file"]
-  set globalSettings::LIBERO_MANDATORY_VARIABLES {"FAMILY" "PACKAGE" "DIE" }
-
   set user_hog_file "$globalSettings::repo_path/Top/hog.tcl"
   if {[file exists $user_hog_file]} {
     Msg Info "Sourcing user hog.tcl file..."
@@ -948,10 +1231,24 @@ proc CreateProject {args} {
   }
 
   InitProject
+
+  if {[IsVitisClassic]} {
+    if {$options(xsa) != ""} {
+      Msg Info "Configuring platforms with xsa: $options(xsa)"
+      ConfigurePlatforms "$options(xsa)"
+    } else {
+      ConfigurePlatforms
+    }
+    ConfigureApps
+    AddAppFiles
+    return
+  }
+
   AddProjectFiles
   ConfigureSynthesis
   ConfigureImplementation
   ConfigureSimulation
+
 
   if {[IsVivado]} {
     # Use HandleIP to pull IPs from HOG_IP_PATH if specified
@@ -986,21 +1283,21 @@ proc CreateProject {args} {
   lassign [GetHogFiles \
     -ext_path "$globalSettings::HOG_EXTERNAL_PATH" \
     -list_files ".src,.ext" \
-    "$globalSettings::repo_path/Top/$globalSettings::group_name/$globalSettings::DESIGN/list/" \
+    "$globalSettings::repo_path/Top/$globalSettings::project_name/list/" \
     $globalSettings::repo_path] \
     listLibraries listProperties listSrcSets
   # Get project constraints and properties from list files
   lassign [GetHogFiles \
     -ext_path "$globalSettings::HOG_EXTERNAL_PATH" \
     -list_files ".con" \
-    "$globalSettings::repo_path/Top/$globalSettings::group_name/$globalSettings::DESIGN/list/" \
+    "$globalSettings::repo_path/Top/$globalSettings::project_name/list/" \
     $globalSettings::repo_path] \
     listConstraints listConProperties listConSets
 
   lassign [GetHogFiles \
     -ext_path "$globalSettings::HOG_EXTERNAL_PATH" \
     -list_files ".sim" \
-    "$globalSettings::repo_path/Top/$globalSettings::group_name/$globalSettings::DESIGN/list/" \
+    "$globalSettings::repo_path/Top/$globalSettings::project_name/list/" \
     $globalSettings::repo_path] \
     listSimLibraries listSimProperties listSimSets
 
@@ -1015,7 +1312,7 @@ proc CreateProject {args} {
     set flavour [GetProjectFlavour $globalSettings::DESIGN]
     # Getting all the versions and SHAs of the repository
     lassign [GetRepoVersions \
-      [file normalize $globalSettings::repo_path/Top/$globalSettings::group_name/$globalSettings::DESIGN] \
+      [file normalize $globalSettings::repo_path/Top/$globalSettings::project_name] \
       $globalSettings::repo_path \
       $globalSettings::HOG_EXTERNAL_PATH \
     ] commit version hog_hash hog_ver top_hash top_ver libs hashes vers cons_ver cons_hash ext_names ext_hashes \
@@ -1037,7 +1334,7 @@ proc CreateProject {args} {
     lassign [GetDateAndTime $commit] date timee
     WriteGenerics "create" \
       $globalSettings::repo_path \
-      $globalSettings::group_name/$globalSettings::DESIGN \
+      $globalSettings::project_name \
       $date $timee $commit $version \
       $top_hash $top_ver $hog_hash $hog_ver \
       $cons_ver $cons_hash $libs $vers $hashes \
@@ -1054,5 +1351,30 @@ proc CreateProject {args} {
     prj_project save
   }
 
-  Msg Info "Project $globalSettings::DESIGN created successfully in [Relative $globalSettings::repo_path $globalSettings::build_dir]."
+
+  if {($globalSettings::vitis_classic == 1)} {
+    # Presynth hw platform, let's keep it in the build directory
+    write_hw_platform -fixed -force -file [file normalize "$globalSettings::build_dir/$globalSettings::DESIGN-presynth.xsa"]
+
+    # Launch xsct to build the project
+    if {$options(xsa) == ""} {
+      set xsa_opt ""
+    } else {
+      if {[IsRelativePath $options(xsa)] == 0} {
+        set xsa_opt "-xsa $options(xsa)"
+      } else {
+        set xsa_opt "-xsa $globalSettings::repo_path/$options(xsa)"
+      }
+    }
+
+    set xsct_cmd "xsct $globalSettings::tcl_path/launch.tcl C $xsa_opt -vitis_only $globalSettings::project_name"
+    Msg Info "Running Vitis Classic project creation script with command: $xsct_cmd"
+    set ret [catch {exec -ignorestderr {*}$xsct_cmd >@ stdout} result]
+    if {$ret != 0} {
+      Msg Error "xsct (vitis classic) returned an error state."
+    }
+  }
+
+
+  Msg Info "Project $globalSettings::project_name created successfully in [Relative $globalSettings::repo_path $globalSettings::build_dir]."
 }

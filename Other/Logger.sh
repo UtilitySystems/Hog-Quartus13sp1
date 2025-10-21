@@ -278,14 +278,14 @@ function log_stdout(){
       fi
       dataLine=$line
       if $buffered; then
-        stderr_ack=""
+        stderr_ack=" "
       else
         if [ "${1}" == "stdout" ]; then
-          stderr_ack=""
+          stderr_ack=" "
         elif [ "${1}" == "stderr" ]; then
-          stderr_ack="*"
-        else
           stderr_ack="E"
+        else
+          stderr_ack="*"
         fi
       fi
       case "$line" in
@@ -329,6 +329,7 @@ function log_stdout(){
             if [[ "$line" == *"$key"* ]]; then
               Msg Debug "Message level Override: Key < '$key' > exists in the string < $line > with value '${errorOverload[$key]}'"
               msgType="${errorOverload[$key]}"
+              stderr_ack="e"
             fi
           done
         ;;
@@ -337,6 +338,7 @@ function log_stdout(){
             if [[ "$line" == *"$key"* ]]; then
               Msg Debug "Message level Override: Key < '$key' > exists in the string < $line > with value '${criticalOverload[$key]}'"
               msgType="${criticalOverload[$key]}"
+              stderr_ack="c"
             fi
           done
         ;;
@@ -345,6 +347,7 @@ function log_stdout(){
             if [[ "$line+" == *"$key"* ]]; then
               Msg Debug "Message level Override: Key < '$key' > exists in the string < $line > with value '${warningOverload[$key]}'"
               msgType="${warningOverload[$key]}"
+              stderr_ack="w"
             fi
           done
         ;;
@@ -353,6 +356,7 @@ function log_stdout(){
             if [[ "$line" == *"$key"* ]]; then
               Msg Debug "Message level Override: Key < '$key' > exists in the string < $line > with value '${infoOverload[$key]}'"
               msgType="${infoOverload[$key]}"
+              stderr_ack="i"
             fi
           done
         ;;
@@ -361,6 +365,7 @@ function log_stdout(){
             if [[ "$line" == *"$key"* ]]; then
               Msg Debug "Message level Override: Key < '$key' > exists in the string < $line > with value '${infoOverload[$key]}'"
               msgType="${infoOverload[$key]}"
+              stderr_ack="i"
             fi
           done
         ;;
@@ -369,6 +374,7 @@ function log_stdout(){
             if [[ "$line" == *"$key"* ]]; then
               Msg Debug "Message level Override: Key < '$key' > exists in the string < $line > with value '${debugOverload[$key]}'"
               msgType="${debugOverload[$key]}"
+              stderr_ack="d"
             fi
           done
         ;;
@@ -569,7 +575,7 @@ function Msg() {
   if  $BUFFERING; then
     {
       if [[ $VERBOSE_LEVEL -gt ${msgDbgLvl[$msgType]} ]]; then
-        echo "$1[Hog:${FUNCNAME[1]}] $text"
+        echo " $1[Hog:${FUNCNAME[1]}] $text"
       fi
     } >> "$BUFFER_FILE"
   else
@@ -589,34 +595,34 @@ function Msg() {
       if [[ $HOG_COLOR_EN -gt 1 ]]; then
         case "${clrschselected}" in
           "dark")
-            echo -e "${darkColorScheme[$msgType]} [Hog:${FUNCNAME[1]}] $text"
+            echo -e " ${darkColorScheme[$msgType]} [Hog:${FUNCNAME[1]}] $text"
           ;;
           "clear")
-            echo -e "${clearColorScheme[$msgType]} [Hog:${FUNCNAME[1]}] $text"
+            echo -e " ${clearColorScheme[$msgType]} [Hog:${FUNCNAME[1]}] $text"
           ;;
         esac
       elif [[ $HOG_COLOR_EN -gt 0 ]]; then
-        echo -e "${simpleColor[$msgType]} [Hog:${FUNCNAME[1]}] $text $txtwht"
+        echo -e " ${simpleColor[$msgType]} [Hog:${FUNCNAME[1]}] $text $txtwht"
       else
-        echo "$1[Hog:${FUNCNAME[1]}] $text"
+        echo " $1[Hog:${FUNCNAME[1]}] $text"
       fi
     fi
   fi
 
   if [[ $HOG_LOG_EN -gt 0 ]]; then
     if [[ -n $LOG_WAR_ERR_FILE ]] && [[ 3 -gt ${msgDbgLvl[$msgType]} ]]; then
-      echo "${msgHeadBW[$msgType]} HOG [${FUNCNAME[1]}] : $text " >> $LOG_WAR_ERR_FILE;
+      echo " ${msgHeadBW[$msgType]} HOG [${FUNCNAME[1]}] : $text " >> $LOG_WAR_ERR_FILE;
     fi
     if [[ -n $LOG_INFO_FILE ]]; then
-      echo "${msgHeadBW[$msgType]} HOG [${FUNCNAME[1]}] : $text " >> $LOG_INFO_FILE;
+      echo " ${msgHeadBW[$msgType]} HOG [${FUNCNAME[1]}] : $text " >> $LOG_INFO_FILE;
     fi
   else
     # store in a temporary file
     if [[ -n $LOG_WAR_ERR_FILE ]] && [[ 3 -gt ${msgDbgLvl[$msgType]} ]]; then
-      echo "${msgHeadBW[$msgType]} HOG [${FUNCNAME[1]}] : $text " >> $TEMP_LOG_WAR_ERR_FILE;
+      echo " ${msgHeadBW[$msgType]} HOG [${FUNCNAME[1]}] : $text " >> $TEMP_LOG_WAR_ERR_FILE;
     fi
     if [[ -n $LOG_INFO_FILE ]]; then
-      echo "${msgHeadBW[$msgType]} HOG [${FUNCNAME[1]}] : $text " >> $TEMP_LOG_INFO_FILE;
+      echo " ${msgHeadBW[$msgType]} HOG [${FUNCNAME[1]}] : $text " >> $TEMP_LOG_INFO_FILE;
     fi
   fi
   if [[ $ENABLE_FWE -eq 1 ]];then
