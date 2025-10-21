@@ -14,7 +14,7 @@ proc parse_hdl {f toplib} {
 
 
   # ------------ VERILOG ------------
-  if { $ext eq ".v" || $ext eq ".sv" || $ext eq ".mem" || $ext eq ".vh" || $ext eq ".yaml" || $ext eq ".svh"}  {
+  if { $ext eq ".mem" || $ext eq ".vh" || $ext eq ".yaml" || $ext eq ".svh"}  {
       # Find modules
       # foreach {full name body} [regexp -inline -all {module\s+(\w+)[^;]*;([\s\S]*?)endmodule} $txt] {
           # set module_name $name
@@ -64,8 +64,14 @@ proc parse_hdl {f toplib} {
 
   # ---- Verilog ---------
   if {[IsVerilog $f]} {
-    foreach {full name} [regexp -all -inline {^\s*module\s+(\w+)} $txt] {
+    foreach {full name} [regexp -all -inline -line {^(?!\s*//)\s*module\s+(\w+)} $txt] {
       set module_name $name
+    }
+    set pattern {^\s*(\w+)\s*(?:#\s*\([^;]*\))?\s+(\w+)\s*\(}
+    foreach {full module inst} [regexp -all -inline -line $pattern $txt] {
+      if {$inst != "if" && $inst != "for" && $inst != "while"} {
+        lappend modules $inst:$top_lib.$module
+      }
     }
   }
 
@@ -150,7 +156,6 @@ proc Hierarchy {listProperties listLibraries repo_path {output_path ""}} {
   dict for {f p} $listProperties {
     set top [lindex [regexp -inline {\ytop\s*=\s*(.+?)\y.*} $p] 1]
     if {$top != ""} {
-      # puts "Top module found: $top"
       break
     }
   }
@@ -174,13 +179,13 @@ proc Hierarchy {listProperties listLibraries repo_path {output_path ""}} {
 
   set topmodule ""
   set topdeps [list]
-  dict for {f dep} $deps {
+  dict for {m path} $mods {
     # Search for top module
-    if {[string first $top $f] != -1} {
+    if {[string first $top $m] != -1} {
       # puts "Top module '$top' found in file '$f'."
-      set topmodule $f
-      set topdeps $dep
-      set toppath [DictGet $mods $f]
+      set topmodule $m
+      set topdeps [DictGet $deps $m]
+      set toppath $path
       break
     }
   }

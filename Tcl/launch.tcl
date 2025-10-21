@@ -252,6 +252,7 @@ if {$options(verbose) == 1} {
 }
 # printDebugMode
 # Msg Info "Number of jobs set to $options(njobs)."
+set output_path ""
 if {$options(output) != ""} {
   set output_path $options(output)
 }
