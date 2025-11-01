@@ -475,7 +475,7 @@ jobs:
                   export SIMSETS="-simset ${{ inputs.HOG_SIMSETS }}";
                 else
                   export SIMSETS="";
-                fi; 
+                fi;
                 SIM_CMD="./Hog/Do SIMULATE $PROJECT_NAME $SIM_ONLY $COMPILE_ONLY $SIMSETS";
                 if [ -z "$HOG_APPTAINER_IMAGE" ]; then
                   echo $SIM_CMD;
