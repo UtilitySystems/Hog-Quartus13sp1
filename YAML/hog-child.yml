@@ -88,7 +88,7 @@
           export SIMSETS="-simset $HOG_SIMSETS";
         else
           export SIMSETS="";
-        fi; 
+        fi;
         SIM_CMD="./Hog/Do SIMULATE $PROJECT_NAME $SIM_ONLY $COMPILE_ONLY $SIMSETS";
         if [[ -f $HOG_APPTAINER_IMAGE ]]; then
           echo "apptainer exec -H $PWD $HOG_APPTAINER_IMAGE $SIM_CMD";
