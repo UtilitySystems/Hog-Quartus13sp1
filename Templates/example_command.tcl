@@ -4,7 +4,7 @@
 set ::hog_command {
   NAME  {example_command}
 
-  DESCRIPTION "A simple example command that is ran from the IDE."
+  DESCRIPTION "A simple example command that is ran from TCLSH."
 
   CUSTOM_OPTIONS {
     {num.arg 1 "Number of times to print \"Hello World\""}
