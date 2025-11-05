@@ -165,9 +165,7 @@ set default_commands {
 
   default {
     if {$directive != ""} {
-      Msg Status "ERROR: Unknown directive $directive.\n\n"
-      puts $usage
-      exit 1
+      set NO_DIRECTIVE_FOUND 1
     } else {
       puts "$usage"
       exit 0
@@ -219,13 +217,11 @@ if {[IsQuartus]} {
 
 # Msg Debug "s: $::argv0 a: $argv"
 
-set commands_path [file normalize "$tcl_path/../../hog-commands/"]
 ### CUSTOM COMMANDS ###
-set custom_commands [GetCustomCommands $commands_path 1]
-set custom_usage [GetCustomCommands $commands_path]
-# append usage "\n** Options:"
+set commands_path [file normalize "$tcl_path/../../hog-commands/"]
+set custom_commands [GetCustomCommands $parameters $commands_path ]
 
-lassign [InitLauncher $::argv0 $tcl_path $parameters $default_commands $argv $custom_usage] \
+lassign [InitLauncher $::argv0 $tcl_path $parameters $default_commands $argv $custom_commands] \
 directive project project_name group_name repo_path old_path bin_dir top_path usage short_usage cmd ide list_of_options
 
 array set options $list_of_options
@@ -265,8 +261,68 @@ set do_check_list_files 0
 set do_compile_lib 0
 set do_sigasi 0
 
-Msg Debug "Looking for a $directive in : $default_commands $custom_commands"
-switch -regexp -- $directive "$default_commands $custom_commands"
+set NO_DIRECTIVE_FOUND 0
+switch -regexp -- $directive $default_commands
+
+if {$NO_DIRECTIVE_FOUND == 1} {
+  if {[string length $custom_commands] > 0 && [dict exists $custom_commands $directive]} {
+    if {$cmd == "custom_tcl"} {
+      eval [dict get $custom_commands $directive SCRIPT]
+      exit
+    } else {
+      if {[IsTclsh]} {
+        Msg Info "Launching command: $cmd..."
+
+        # Check if the IDE is actually in the path...
+        set ret [catch {exec which $ide}]
+        if {$ret != 0} {
+          Msg Error "$ide not found in your system. Make sure to add $ide to your PATH enviromental variable."
+          exit $ret
+        }
+
+        if {[string first libero $cmd] >= 0} {
+          # The SCRIPT_ARGS: flag of libero makes tcl crazy...
+          # Let's pipe the command into a shell script and remove it later
+          set libero_script [open "launch-libero-hog.sh" w]
+          puts $libero_script "#!/bin/sh"
+          puts $libero_script $cmd
+          close $libero_script
+          set cmd "sh launch-libero-hog.sh"
+        }
+
+        set ret [catch {exec -ignorestderr {*}$cmd >@ stdout} result]
+
+        if {$ret != 0} {
+          Msg Error "IDE returned an error state."
+        } else {
+          Msg Info "All done."
+          exit 0
+        }
+
+        if {[string first libero $cmd] >= 0} {
+          file delete "launch-libero-hog.sh"
+        }
+
+        exit $ret
+        Msg Info "No directive found, pre ide exiting..."
+        Msg Status "ERROR: Unknown directive $directive.\n\n"
+        puts $usage
+        exit
+      }
+
+      eval [dict get $custom_commands $directive SCRIPT]
+
+      if {[dict exists $custom_commands $directive NO_EXIT]} {
+        set no_exit [dict get $custom_commands $directive NO_EXIT]
+        if {$no_exit == 0 || $no_exit == false } {
+          exit
+        }
+      } else {
+        exit
+      }
+    }
+  }
+}
 
 if {$options(all) == 1} {
   set do_list_all 1

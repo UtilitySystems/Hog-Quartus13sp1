@@ -1854,43 +1854,155 @@ proc GetConfFiles {proj_dir} {
 #
 # @param[in] directory    The directory where to look for custom tcl scripts (Default .)
 # @param[in] ret_commands if 1 returns commands as switch statement string instead of usage (Default 0)
-proc GetCustomCommands {{directory .} {ret_commands 0}} {
+proc GetCustomCommands {parameters {directory .}} {
   set commands_dict [dict create]
   set commands_files [glob -nocomplain $directory/*.tcl]
-  set commands_string ""
 
   if {[llength $commands_files] == 0} {
     return ""
   }
 
-  if {$ret_commands == 0} {
-    append commands_string "\nCustom Commands:\n"
+  foreach file $commands_files {
+
+    #Msg Info "do compile libe? $do_compile_lib"
+    set custom_cmd [LoadCustomCommandFile $file $parameters]
+
+    if {$custom_cmd eq ""} {
+      continue
+    }
+
+    #Msg Info "Validating custom command $custom_cmd"
+    set custom_cmd_name [dict get $custom_cmd NAME]
+
+    Msg Debug "Loaded custom command '$custom_cmd_name' from $file"
+
+    #Ensure command is not already defined
+    if {[dict exists $commands_dict $custom_cmd_name]} {
+      Msg Error "Custom command '$custom_cmd_name' in $file already defined as: \[dict get $commands_dict $custom_cmd_name\]. Skipping."
+      continue
+    }
+
+
+
+    set custom_cmd_name [ string toupper $custom_cmd_name ]
+    dict set commands_dict  $custom_cmd_name $custom_cmd
   }
 
-  foreach file $commands_files {
-    set base_name [string toupper [file rootname [file tail $file]]]
-    if {$ret_commands == 1} {
-      append commands_string "
-      \\^$base_name\$ {
-        Msg Info \"Running custom script: $file\"
-        source \"$file\"
-        Msg Info \"Done running custom script...\"
-        exit
+  return $commands_dict
+}
+
+proc SanitizeCustomCommand {cmdDict file parameters} {
+  # Normalize all user-provided keys to uppercase so NAME/DESCRIPTION/etc are case-insensitive.
+  set normalized {}
+  foreach k [dict keys $cmdDict] {
+    set K [string toupper $k]
+    dict set normalized $K [dict get $cmdDict $k]
+  }
+
+  set cmdDict $normalized
+  if {![dict exists $cmdDict NAME]} {
+    Msg Error "Custom command in $file missing required key NAME. Skipping."
+    return ""
+  }
+  if {![dict exists $cmdDict SCRIPT]} {
+    Msg Error "Custom command '$[dict get $cmdDict NAME]' in $file missing SCRIPT. Skipping."
+    return ""
+  }
+
+  # Allowed keys (uppercased). IDE is optional and will be validated if present.
+  set allowed {NAME DESCRIPTION CUSTOM_OPTIONS SCRIPT IDE NO_EXIT}
+  foreach k [dict keys $cmdDict] {
+    if {[lsearch -exact $allowed $k] < 0} {
+      Msg Warning "Custom command '[dict get $cmdDict NAME]' in $file: unknown key '$k'. Allowed: $allowed. Skipping."
+    }
+  }
+
+  # NAME
+  set name [string trim [dict get $cmdDict NAME]]
+  if {$name eq ""} {
+    Msg Error "Custom command in $file has empty NAME. Skipping."
+    return ""
+  }
+
+  if {![regexp {^[a-zA-Z][a-zA-Z0-9_]+$} $name]} {
+    Msg Error "Custom command NAME '$name' (file $file) contains invalid characters."
+  }
+
+  # DESCRIPTION
+  if {![dict exists $cmdDict DESCRIPTION]} {
+    dict set cmdDict DESCRIPTION "No description provided."
+  }
+
+
+
+  # CUSTOM_OPTIONS
+  set opt_defs {}
+  if {[dict exists $cmdDict CUSTOM_OPTIONS]} {
+    set raw_opts [dict get $cmdDict CUSTOM_OPTIONS]
+    if {![llength $raw_opts]} {
+      set raw_opts {}
+    }
+    foreach item $raw_opts {
+
+      if {[llength $item] != 2 && [llength $item] != 3} {
+        Msg Error "Bad custom option: \[$item\]. Custom command '$name' in $file: each CUSTOM_OPTIONS entry must be {option \"help\"} for flags and {option \"default_value\" \"help\"} for options with arguments. Skipping command."
+        return ""
       }
-      "
-    } else {
-      set f [open $file r]
-      set first_line [gets $f]
-      close $f
-      if {[regexp -nocase "^#\s*$base_name:\s*(.*)" $first_line full_match script_des]} {
-        append commands_string "   - $base_name: $script_des\n"
+
+      if {[llength $item] == 2} {
+        lassign $item opt help
+        set def ""
       } else {
-        append commands_string "   - $base_name: runs $file\n"
+        lassign $item opt def help
+      }
+
+      foreach p $parameters {
+        if {[lindex $p 0] eq $opt} {
+          Msg Warning "Custom command '$name' in $file: option '$opt' already defined in Hog parameters. Skipping."
+          continue
+        }
+      }
+
+
+      #optional .arg in option regex
+      if {![regexp {^[a-zA-Z][a-zA-Z0-9_]*(\.arg)?$} $opt]} {
+        Msg Error "Custom command '$name' in $file: invalid option name '$opt'."
+        return ""
+      }
+
+      if {$help eq ""} {
+        Msg Warning "Custom command '$name' option '$opt' has empty help text."
       }
     }
   }
-  return $commands_string
+
+  return $cmdDict
 }
+
+proc LoadCustomCommandFile {file parameters} {
+  set saved_pwd [pwd]
+  set dir [file dirname $file]
+  cd $dir
+  unset -nocomplain ::hog_command
+  set rc [catch {source $file} err]
+  cd $saved_pwd
+  if {$rc} {
+    Msg Error "Error sourcing custom command file $file: $err"
+    return ""
+  }
+  if {![info exists ::hog_command]} {
+    Msg Warning "File $file did not define ::hog_command. Skipping."
+    return ""
+  }
+  set cmdDict $::hog_command
+  # Ensure it's a dict
+  if {[catch {dict size $cmdDict}]} {
+    Msg Error "In $file ::hog_command is not a valid dict. Skipping."
+    return ""
+  }
+  return [SanitizeCustomCommand $cmdDict $file $parameters]
+}
+
 
 ## Get the Date and time of a commit (or current time if Git < 2.9.3)
 #
@@ -2212,58 +2324,61 @@ proc GetHogFiles {args} {
 # @brief Get the IDE of a Hog project and returns the correct argument for the IDE cli command
 #
 # @param[in] proj_conf The project hog.conf file
-proc GetIDECommand {proj_conf} {
-  # GetConfFiles returns a list, the first element is hog.conf
-  if {[file exists $proj_conf]} {
+# @param[in] custom_ver If set, use this version instead of the one in the hog.conf
+proc GetIDECommand {proj_conf {custom_ver ""}} {
+  if {$custom_ver ne ""} {
+    set ide_name_and_ver [string tolower "$custom_ver"]
+  } elseif {[file exists $proj_conf]} {
     set ide_name_and_ver [string tolower [GetIDEFromConf $proj_conf]]
-    set ide_name [lindex [regexp -all -inline {\S+} $ide_name_and_ver] 0]
-
-    if {$ide_name eq "vivado" || $ide_name eq "vivado_vitis_classic"} {
-      set command "vivado"
-      # A space ater the before_tcl_script is important
-      set before_tcl_script " -nojournal -nolog -mode batch -notrace -source "
-      set after_tcl_script " -tclargs "
-      set end_marker ""
-    } elseif {$ide_name eq "planahead"} {
-      set command "planAhead"
-      # A space ater the before_tcl_script is important
-      set before_tcl_script " -nojournal -nolog -mode batch -notrace -source "
-      set after_tcl_script " -tclargs "
-      set end_marker ""
-    } elseif {$ide_name eq "quartus"} {
-      set command "quartus_sh"
-      # A space after the before_tcl_script is important
-      set before_tcl_script " -t "
-      set after_tcl_script " "
-      set end_marker ""
-    } elseif {$ide_name eq "libero"} {
-      #I think we need quotes for libero, not sure...
-
-      set command "libero"
-      set before_tcl_script "SCRIPT:"
-      set after_tcl_script " SCRIPT_ARGS:\""
-      set end_marker "\""
-    } elseif {$ide_name eq "diamond"} {
-      set command "diamondc"
-      set before_tcl_script " "
-      set after_tcl_script " "
-      set end_marker ""
-    } elseif {$ide_name eq "vitis_classic"} {
-      set command "xsct"
-      # A space after the before_tcl_script is important
-      set before_tcl_script ""
-      set after_tcl_script " "
-      set end_marker ""
-    } elseif {$ide_name eq "ghdl"} {
-      set command "ghdl"
-      set before_tcl_script " "
-      set after_tcl_script " "
-      set end_marker ""
-    } else {
-      Msg Error "IDE: $ide_name not known."
-    }
   } else {
     Msg Error "Configuration file $proj_conf not found."
+  }
+
+  set ide_name [lindex [regexp -all -inline {\S+} $ide_name_and_ver] 0]
+
+  if {$ide_name eq "vivado" || $ide_name eq "vivado_vitis_classic"} {
+    set command "vivado"
+    # A space ater the before_tcl_script is important
+    set before_tcl_script " -nojournal -nolog -mode batch -notrace -source "
+    set after_tcl_script " -tclargs "
+    set end_marker ""
+  } elseif {$ide_name eq "planahead"} {
+    set command "planAhead"
+    # A space ater the before_tcl_script is important
+    set before_tcl_script " -nojournal -nolog -mode batch -notrace -source "
+    set after_tcl_script " -tclargs "
+    set end_marker ""
+  } elseif {$ide_name eq "quartus"} {
+    set command "quartus_sh"
+    # A space after the before_tcl_script is important
+    set before_tcl_script " -t "
+    set after_tcl_script " "
+    set end_marker ""
+  } elseif {$ide_name eq "libero"} {
+    #I think we need quotes for libero, not sure...
+
+    set command "libero"
+    set before_tcl_script "SCRIPT:"
+    set after_tcl_script " SCRIPT_ARGS:\""
+    set end_marker "\""
+  } elseif {$ide_name eq "diamond"} {
+    set command "diamondc"
+    set before_tcl_script " "
+    set after_tcl_script " "
+    set end_marker ""
+  } elseif {$ide_name eq "vitis_classic"} {
+    set command "xsct"
+    # A space after the before_tcl_script is important
+    set before_tcl_script ""
+    set after_tcl_script " "
+    set end_marker ""
+  } elseif {$ide_name eq "ghdl"} {
+    set command "ghdl"
+    set before_tcl_script " "
+    set after_tcl_script " "
+    set end_marker ""
+  } else {
+    Msg Error "IDE: $ide_name not known."
   }
 
   return [list $command $before_tcl_script $after_tcl_script $end_marker]
@@ -2437,9 +2552,11 @@ proc GetOptions {argv parameters} {
       set option [string trimleft $arg "-"]
       incr index
       lappend option_list $arg
-      if {[lsearch $param_list ${option}*] >= 0 && [string first ".arg" [lsearch -inline $param_list ${option}*]] >= 0} {
-        lappend option_list [lindex $argv $index]
-        incr index
+      if {[lsearch -regex $param_list "$option\[.arg]?"] >= 0 } {
+        if {[lsearch -regex $param_list "$option\[.arg]"] >= 0 } {
+          lappend option_list [lindex $argv $index]
+          incr index
+        }
       }
     } else {
       lappend arg_list $arg
@@ -3849,6 +3966,8 @@ proc InitLauncher {script tcl_path parameters commands argv {custom_commands ""}
   set directive_descriptions [dict create]
   set directive_names [dict create]
   set common_directive_names [dict create]
+  set custom_command ""
+  set custom_command_options ""
 
   foreach l $cmd_lines {
     #excludes direcitve with a # just after the \{
@@ -3888,6 +4007,17 @@ proc InitLauncher {script tcl_path parameters commands argv {custom_commands ""}
     set short_usage "$short_usage\n   - $key: [dict get $directive_descriptions $value]"
   }
 
+  if {[string length $custom_commands] > 0} {
+    Msg Debug "Found custom commands to add to short short_usage."
+    set short_usage "$short_usage\n\nCustom commands:"
+    dict for {key command} $custom_commands {
+      Msg Debug "Adding $key : [dict get $command DESCRIPTION]"
+      set short_usage "$short_usage\n   - $key: [dict get $command DESCRIPTION]"
+    }
+  }
+
+
+
   set short_usage "$short_usage\n\n\
   To see all the available directives, run:\n./Hog/Do HELP\n\n\
   To list available options for the chosen directive run:\n\
@@ -3900,7 +4030,16 @@ proc InitLauncher {script tcl_path parameters commands argv {custom_commands ""}
     set usage "$usage\n   - $key: [dict get $directive_descriptions $value]"
   }
 
-  set usage "$usage\n$custom_commands"
+ #if length of custom commands is greater than 0, add them to the short usage
+  if {[string length $custom_commands] > 0} {
+    Msg Debug "Found custom commands to add to short usage."
+    set usage "$usage\n\nCustom commands:"
+    dict for {key command} $custom_commands {
+      Msg Debug "Adding $key : [dict get $command DESCRIPTION]"
+      set usage "$usage\n   - $key: [dict get $command DESCRIPTION]"
+    }
+  }
+
 
   set usage "$usage\n\nTo list available options for the chosen directive run:\n./Hog/Do <directive> HELP"
 
@@ -3926,7 +4065,15 @@ proc InitLauncher {script tcl_path parameters commands argv {custom_commands ""}
 
   set argv [regsub -all {(?i) HELP\y} $argv " -help"]
 
-  lassign [GetOptions $argv $parameters] option_list arg_list
+
+  #Gather up all custom parameters
+  #NOTE: right now user can accidentally redefine their own custom parameters, there is no check for that...
+  set custom_parameters [list]
+  dict for {key command} $custom_commands {
+    set custom_parameters [concat $custom_parameters [dict get $command CUSTOM_OPTIONS]]
+  }
+
+  lassign [GetOptions $argv [concat $custom_parameters $parameters]] option_list arg_list
 
   if {[IsInList "-all" $option_list]} {
     set list_all 1
@@ -3942,7 +4089,19 @@ proc InitLauncher {script tcl_path parameters commands argv {custom_commands ""}
   set max_n_of_args 2
   set argument_is_no_project 1
 
+  set NO_DIRECTIVE_FOUND 0
   switch -regexp -- $directive "$commands"
+  if {$NO_DIRECTIVE_FOUND == 1} {
+    if {[string length $custom_commands] > 0 && [dict exists $custom_commands $directive]} {
+      set custom_command $directive
+      set custom_command_options [dict get $custom_commands $directive CUSTOM_OPTIONS]
+    } else {
+      Msg Info "No directive found, pre ide exiting..."
+      Msg Status "ERROR: Unknown directive $directive.\n\n"
+      puts $usage
+      exit
+    }
+  }
 
   if {[IsInList $directive $directives_with_projects 1]} {
     set argument_is_no_project 0
@@ -3962,6 +4121,32 @@ proc InitLauncher {script tcl_path parameters commands argv {custom_commands ""}
         if {[regexp $dir $directive]} {
           puts "$desc\n"
           break
+        }
+      }
+
+
+      #if custom command, parse custom options instead
+      if {$custom_command ne ""} {
+        if {[llength $custom_command_options] > 0} {
+          puts "Available options:"
+        }
+        foreach custom_option $custom_command_options {
+          set n [llength $custom_option]
+          if {$n == 2} {
+            lassign $custom_option opt help
+            puts "  -$opt"
+            puts "     $help"
+          } elseif {$n == 3} {
+            lassign $custom_option opt def help
+            puts "  -$opt <argument>"
+            if {$def ne ""} {
+              puts "    $help (default: $def)"
+            } else {
+            puts "     $help"
+            }
+          } else {
+            Msg Warning "Custom option spec has invalid arity (expected 2 or 3): $custom_option"
+          }
         }
       }
 
@@ -3989,6 +4174,10 @@ proc InitLauncher {script tcl_path parameters commands argv {custom_commands ""}
     }
     # Msg Info [cmdline::usage $parameters $usage]
     exit 0
+  }
+
+  if {$custom_command ne ""} {
+    set parameters [concat $parameters $custom_command_options]
   }
 
   if {[catch {array set options [cmdline::getoptions option_list $parameters $usage]} err]} {
@@ -4032,7 +4221,15 @@ proc InitLauncher {script tcl_path parameters commands argv {custom_commands ""}
       ## The following is the IDE command to launch:
       set command "$cmd $before_tcl_script$script$after_tcl_script$argv$end_marker"
     } else {
-      if {$argument_is_no_project == 1} {
+      if {$custom_command ne ""} {
+        if { [dict exists $custom_commands $directive IDE] } {
+          lassign [GetIDECommand "" [dict get $custom_commands $directive IDE]] cmd before_tcl_script after_tcl_script end_marker
+          Msg Info "Custom command: $custom_command uses $cmd IDE"
+          set command "$cmd $before_tcl_script$script$after_tcl_script$argv$end_marker"
+        } else {
+          set command "custom_tcl"
+        }
+      } elseif {$argument_is_no_project == 1} {
         set command -4
         Msg Debug "$project will be used as first argument"
       } elseif {$project != ""} {
