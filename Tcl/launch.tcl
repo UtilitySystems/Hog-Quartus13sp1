@@ -357,6 +357,32 @@ if {$cmd == -1} {
     exit 0
   }
 
+  if {$do_sigasi == 1} {
+    cd $repo_path
+    Msg Info "Creating Sigasi CSV files for project $project_name..."
+    set proj_dir $repo_path/Top/$project_name
+    set proj_list_dir $repo_path/Top/$project_name/list
+    set project [file tail $project_name]
+    lassign [GetHogFiles -list_files {.src} $proj_list_dir $repo_path] libraries
+    set csv_file [open "sigasi_$project.csv" w]
+    foreach lib $libraries {
+      set source_files [DictGet $libraries $lib]
+      foreach source_file $source_files {
+        if {[file extension $source_file] == ".vhd" ||
+            [file extension $source_file] == ".vhdl" ||
+            [file extension $source_file] == ".sv" ||
+            [file extension $source_file] == ".v" } {
+          puts $csv_file [ concat  [file rootname $lib] "," $source_file ]
+        }
+      }
+    }
+    close $csv_file
+    Msg Info "Sigasi CSV file created: sigasi_$project.csv"
+    Msg Info "You can use the python script provided by Sigasi to convert the generated csv file into a Sigasi project."
+    Msg Info "More info at: https://www.sigasi.com/knowledge/how_tos/generating-sigasi-project-vivado-project/#2-generate-the-sigasi-project-files-from-the-csv-file"
+    exit 0
+  }
+
   if {$do_check_yaml_ref == 1} {
     Msg Info "Checking if \"ref\" in .gitlab-ci.yml actually matches the included yml file in Hog submodule"
     CheckYmlRef $repo_path false
@@ -711,60 +737,6 @@ if {$do_check_list_files} {
 
   source $tcl_path/utils/check_list_files.tcl
 }
-
-
-if {$do_sigasi} {
-  Msg Info "Creating Sigasi file for $project..."
-
-  #Simulation
-  set csv_name "${project}_sigasi_sim.csv"
-  #Create IPs here
-  Msg Info "Generating IP targets for simulations..."
-  foreach ip [get_ips] {
-    set targets [list_targets [get_files [file tail [get_property IP_FILE $ip]]]]
-    if {[lsearch -exact $targets simulation] >= 0} {
-      generate_target simulation $ip
-    } else {
-      Msg Warning "IP $ip is not a simulation target, skipping..."
-    }
-  }
-
-  # tclint-disable-next-line line-length
-  set source_files [get_files -filter {(FILE_TYPE == VHDL || FILE_TYPE == "VHDL 2008" || FILE_TYPE == "VHDL 2019" || FILE_TYPE == VERILOG || FILE_TYPE == SYSTEMVERILOG) && USED_IN_SIMULATION == 1 }]
-  if {$options(dst_dir) == ""} {
-    set dst_path "$repo_path"
-  } else {
-    set dst_path $repo_path/$options(dst_dir)
-    if {![file exists $dst_path]} {
-      Msg Info "Creating $dst_path..."
-      file mkdir $dst_path
-    }
-  }
-
-  Msg Info "Creating sigasi csv file for simulation $dst_path/$csv_name..."
-  set csv_file [open $dst_path/$csv_name w]
-
-  foreach source_file $source_files {
-    puts $csv_file [concat [get_property LIBRARY $source_file] "," $source_file]
-  }
-  close $csv_file
-
-  #Synthesis
-  set csv_name "${project}_sigasi_synth.csv"
-  Msg Info "Generating IP targets for synthesis..."
-  foreach ip [get_ips] {
-    generate_target synthesis $ip
-  }
-  # tclint-disable-next-line line-length
-  set source_files [get_files -filter {(FILE_TYPE == VHDL || FILE_TYPE == "VHDL 2008" || FILE_TYPE == "VHDL 2019" || FILE_TYPE == VERILOG || FILE_TYPE == SYSTEMVERILOG) && USED_IN_SYNTHESIS == 1 }]
-  Msg Info "Creating sigasi csv file for synthesis $dst_path/$csv_name..."
-  set csv_file [open $dst_path/$csv_name w]
-  foreach source_file $source_files {
-    puts $csv_file [concat [get_property LIBRARY $source_file] "," $source_file]
-  }
-  close $csv_file
-}
-
 ## CLOSE Project
 CloseProject
 
