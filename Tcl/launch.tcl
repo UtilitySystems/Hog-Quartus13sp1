@@ -89,7 +89,7 @@ set default_commands {
     set do_bitstream 1
     set do_compile 1
     set recreate 1
-    set do_vitis_build 1
+    set do_vitis_build 0
   # NAME: CREATEWORKFLOW or CW
   # DESCRIPTION: Creates the project -even if existing- and launches the complete workflow.
   # OPTIONS: check_syntax, ext_path.arg, njobs.arg, no_bitstream, synth_only, vivado_only, vitis_only, xsa.arg verbose
