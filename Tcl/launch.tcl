@@ -312,12 +312,8 @@ if {$NO_DIRECTIVE_FOUND == 1} {
 
       eval [dict get $custom_commands $directive SCRIPT]
 
-      if {[dict exists $custom_commands $directive NO_EXIT]} {
-        set no_exit [dict get $custom_commands $directive NO_EXIT]
-        if {$no_exit == 0 || $no_exit == false } {
-          exit
-        }
-      } else {
+      set no_exit [dict get $custom_commands $directive NO_EXIT]
+      if {$no_exit == 0} {
         exit
       }
     }

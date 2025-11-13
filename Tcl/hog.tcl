@@ -1910,7 +1910,7 @@ proc SanitizeCustomCommand {cmdDict file parameters} {
   }
 
   # Allowed keys (uppercased). IDE is optional and will be validated if present.
-  set allowed {NAME DESCRIPTION CUSTOM_OPTIONS SCRIPT IDE NO_EXIT}
+  set allowed {NAME DESCRIPTION OPTIONS CUSTOM_OPTIONS SCRIPT IDE NO_EXIT}
   foreach k [dict keys $cmdDict] {
     if {[lsearch -exact $allowed $k] < 0} {
       Msg Warning "Custom command '[dict get $cmdDict NAME]' in $file: unknown key '$k'. Allowed: $allowed. Skipping."
@@ -1934,6 +1934,39 @@ proc SanitizeCustomCommand {cmdDict file parameters} {
   }
 
 
+   set hog_parameters {}
+   foreach p $parameters {
+     lappend hog_parameters [lindex $p 0]
+   }
+
+  # OPTIONS
+  set hog_options {}
+  if {[dict exists $cmdDict OPTIONS]} {
+    set raw_opts [dict get $cmdDict OPTIONS]
+    if {![llength $raw_opts]} {
+      set raw_opts {}
+    }
+
+    foreach item $raw_opts {
+      set found 0
+      foreach p $parameters {
+        set hog_parameter [lindex $p 0]
+        if { $item eq $hog_parameter } {
+            lappend hog_options $p
+            set found 1
+            break
+        }
+      }
+      if {!$found} {
+          Msg Warning "Custom command '$name' in $file: option '$item' not found in Hog parameters. Skipping."
+     }
+    }
+    dict set cmdDict OPTIONS $hog_options
+  } else {
+    dict set cmdDict CUSTOM_OPTIONS {}
+  }
+
+
 
   # CUSTOM_OPTIONS
   set opt_defs {}
@@ -1945,7 +1978,9 @@ proc SanitizeCustomCommand {cmdDict file parameters} {
     foreach item $raw_opts {
 
       if {[llength $item] != 2 && [llength $item] != 3} {
-        Msg Error "Bad custom option: \[$item\]. Custom command '$name' in $file: each CUSTOM_OPTIONS entry must be {option \"help\"} for flags and {option \"default_value\" \"help\"} for options with arguments. Skipping command."
+        Msg Error "Bad custom option: \[$item\]. Custom command '$name' in $file: \
+          each CUSTOM_OPTIONS entry must be {option \"help\"} for flags \
+          and {option \"default_value\" \"help\"} for options with arguments. Skipping command."
         return ""
       }
 
@@ -1956,11 +1991,9 @@ proc SanitizeCustomCommand {cmdDict file parameters} {
         lassign $item opt def help
       }
 
-      foreach p $parameters {
-        if {[lindex $p 0] eq $opt} {
+      if { [IsInList $opt $hog_parameters] == 1 } {
           Msg Warning "Custom command '$name' in $file: option '$opt' already defined in Hog parameters. Skipping."
           continue
-        }
       }
 
 
@@ -1974,6 +2007,24 @@ proc SanitizeCustomCommand {cmdDict file parameters} {
         Msg Warning "Custom command '$name' option '$opt' has empty help text."
       }
     }
+  } else {
+    dict set cmdDict CUSTOM_OPTIONS {}
+  }
+
+  # NO EXIT
+  if {[dict exists $cmdDict NO_EXIT]} {
+    set no_exit [dict get $cmdDict NO_EXIT]
+    set no_exit [string tolower [string trim $no_exit]]
+
+    if {$no_exit eq "1" || $no_exit eq "true"} {
+      set no_exit 1
+    } else {
+      set no_exit 0
+    }
+
+    dict set cmdDict NO_EXIT $no_exit
+  } else {
+    dict set cmdDict NO_EXIT 0
   }
 
   return $cmdDict
@@ -4094,7 +4145,9 @@ proc InitLauncher {script tcl_path parameters commands argv {custom_commands ""}
   if {$NO_DIRECTIVE_FOUND == 1} {
     if {[string length $custom_commands] > 0 && [dict exists $custom_commands $directive]} {
       set custom_command $directive
+      set custom_command_hog_parameters [dict get $custom_commands $directive OPTIONS]
       set custom_command_options [dict get $custom_commands $directive CUSTOM_OPTIONS]
+      set custom_command_options [concat $custom_command_hog_parameters $custom_command_options]
     } else {
       Msg Info "No directive found, pre ide exiting..."
       Msg Status "ERROR: Unknown directive $directive.\n\n"
