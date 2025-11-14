@@ -249,7 +249,7 @@ set ::hog_command {
 
       if { [IsInList $synth_name $current_runs] == 0 } {
         Msg Info "Creating synthesis run: $synth_name with strategy: $synth_strat"
-        create_run $synth_name -flow {$synth_flow} -strategy $synth_strat -quiet
+        create_run $synth_name -flow $synth_flow -strategy $synth_strat -quiet
       }
 
       foreach impl_strat $impl_strategies {
@@ -257,7 +257,7 @@ set ::hog_command {
         lappend impl_run_list $impl_name
         lappend synth_impl_list $impl_name
         if { [IsInList $impl_name $current_runs] == 0 } {
-          create_run $impl_name -parent_run $synth_name -flow {$impl_flow} -strategy $impl_strat -quiet
+          create_run $impl_name -parent_run $synth_name -flow $impl_flow -strategy $impl_strat -quiet
         }
       }
 
