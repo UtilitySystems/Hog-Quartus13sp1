@@ -129,6 +129,19 @@ set ::hog_command {
         return
       }
 
+      set synth_runs {}
+      set impl_runs {}
+
+      foreach r $runs_to_launch {
+        if {[get_property IS_SYNTHESIS [get_runs $r]] == "1"} {
+          lappend synth_runs $r
+        } else {
+          lappend impl_runs $r
+        }
+      }
+
+
+
       Msg Info "Launching [llength $runs_to_launch] runs with $num_jobs jobs in background..."
 
       # Create temporary launch script in project directory
@@ -167,14 +180,16 @@ set ::hog_command {
         set timeout_string ""
       }
 
-      puts $fp "wait_on_runs -quiet $timeout_string -exit_condition $exit_cond [list $runs_to_launch]"
+      puts $fp "wait_on_runs -quiet $timeout_string [list $synth_runs]"
+      puts $fp "wait_on_runs -quiet $timeout_string -exit_condition $exit_cond [list $impl_runs]"
       puts $fp ""
       puts $fp "# Cleanup"
       puts $fp "file delete \$run_file"
       puts $fp "file delete \$script_path"
+      puts $fp "exit"
       close $fp
 
-      exec vivado -mode batch -source $script_path > /dev/null 2>&1 &
+      exec sh -c "setsid vivado -mode batch -source $script_path > /dev/null 2>&1 < /dev/null &" &
     }
 
     proc check_timing_closure {impl_run} {
@@ -294,10 +309,8 @@ set ::hog_command {
     # ------------------------------------------------------------
     if { $run_flag } {
       launch_needed_runs $all_runs $force_flag $jobs $project_dir $project_file $run_file $timeout_min $keep_going
-
-
+      close_project
       Msg Info "Waiting for background launch to start..."
-      set wait_start [clock milliseconds]
 
       while {1} {
         if {[file exists $run_file]} {
@@ -313,7 +326,7 @@ set ::hog_command {
     # Monitoring runs and display status
     # ------------------------------------------------------------
     if {$monitor_flag} {
-
+      open_project $project_file
       if {![file exists $run_file]} {
         Msg Error "Could not detect timing closure run... exiting...  "
         return
@@ -322,24 +335,23 @@ set ::hog_command {
       source $run_file
 
 
-      set all_run_list [concat $synth_run_list $impl_run_list]
 
       if {!$run_flag} {
-        set jobs [determine_njobs $all_run_list]
+        set jobs [determine_njobs $all_runs]
         if {$jobs == 0} {
           Msg Warning "No running jobs detected. Ensure runs are launched and running..."
           return;
         }
       }
 
-      set total_runs [llength $all_run_list]
+      set total_runs [llength $all_runs]
       Msg Info "Monitoring $total_runs runs ($jobs active) for timing closure (timeout=${timeout_min}min)."
 
       set timing_passed 0
       set passed_run ""
 
       while {1} {
-        show_run_status $all_run_list $start_ms
+        show_run_status $all_runs $start_ms
 
         if {$timeout_min > 0} {
           set elapsed_ms [expr {[clock milliseconds] - $start_ms}]
@@ -373,7 +385,7 @@ set ::hog_command {
         if {$timing_passed && !$keep_going} {
           break
         }
-        if {$keep_going && [all_runs_complete $all_run_list]} {
+        if {$keep_going && [all_runs_complete $all_runs]} {
           Msg Info "All runs complete."
           break
         }
@@ -388,12 +400,8 @@ set ::hog_command {
         foreach impl_run $impl_run_list {
           if {$impl_run eq $passed_run} { continue }
           if {[get_run_status $impl_run] eq "QUEUED"} {
-            lappend to_reset $impl_run
+            catch { reset_run $impl_run}
           }
-        }
-        if {[llength $to_reset] > 0} {
-          catch { reset_run $to_reset }
-          Msg Info "Reset queued runs after timing closure: $to_reset"
         }
       }
     }
