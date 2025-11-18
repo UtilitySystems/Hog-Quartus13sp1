@@ -4149,7 +4149,6 @@ proc InitLauncher {script tcl_path parameters commands argv {custom_commands ""}
       set custom_command_options [dict get $custom_commands $directive CUSTOM_OPTIONS]
       set custom_command_options [concat $custom_command_hog_parameters $custom_command_options]
     } else {
-      Msg Info "No directive found, pre ide exiting..."
       Msg Status "ERROR: Unknown directive $directive.\n\n"
       puts $usage
       exit
