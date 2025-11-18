@@ -320,13 +320,15 @@ set ::hog_command {
 
         after 1000
       }
+      if {$monitor_flag} {
+        open_project $project_file
+      }
     }
 
     # ------------------------------------------------------------
     # Monitoring runs and display status
     # ------------------------------------------------------------
     if {$monitor_flag} {
-      open_project $project_file
       if {![file exists $run_file]} {
         Msg Error "Could not detect timing closure run... exiting...  "
         return

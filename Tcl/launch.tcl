@@ -262,10 +262,13 @@ set do_compile_lib 0
 set do_sigasi 0
 
 set NO_DIRECTIVE_FOUND 0
+Msg Debug "Looking for a $directive in : $default_commands"
 switch -regexp -- $directive $default_commands
 
 if {$NO_DIRECTIVE_FOUND == 1} {
+  Msg Debug "No directive found in default commands, looking in custom commands..."
   if {[string length $custom_commands] > 0 && [dict exists $custom_commands $directive]} {
+    Msg Debug "Directive $directive found in custom commands."
     if {$cmd == "custom_tcl"} {
       eval [dict get $custom_commands $directive SCRIPT]
       exit
@@ -304,10 +307,6 @@ if {$NO_DIRECTIVE_FOUND == 1} {
         }
 
         exit $ret
-        Msg Info "No directive found, pre ide exiting..."
-        Msg Status "ERROR: Unknown directive $directive.\n\n"
-        puts $usage
-        exit
       }
 
       eval [dict get $custom_commands $directive SCRIPT]
@@ -317,6 +316,11 @@ if {$NO_DIRECTIVE_FOUND == 1} {
         exit
       }
     }
+  } else {
+      Msg Info "No directive found, pre ide exiting..."
+      Msg Status "ERROR: Unknown directive $directive.\n\n"
+      puts $usage
+      exit
   }
 }
 
