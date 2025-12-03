@@ -266,10 +266,10 @@
             cp $CI_PROJECT_DIR/Projects/$PROJECT_NAME/versions.txt $CI_PROJECT_DIR/bin/$PROJECT_NAME*/;
           fi;
           if ls $CI_PROJECT_DIR/bin/$PROJECT_NAME*/timing_error.txt >/dev/null 2>&1; then
+            echo "Copying the Project folder for debugging purposes inside bin/";
+            cp -r $CI_PROJECT_DIR/Projects $CI_PROJECT_DIR/bin/Projects;
             if [ -n "$HOG_FAIL_TIMING" ] && [ "$HOG_FAIL_TIMING" = '1' ]; then
               echo "Hog-CI(error) - Project $PROJECT_NAME failed timing constraints. Failing the job as requested.";
-              echo "Copying the Project folder for debugging purposes inside bin/";
-              cp -r $CI_PROJECT_DIR/Projects $CI_PROJECT_DIR/bin/Projects;
               exit 1;
             else
               echo "Hog-CI(critical warning) - Project $PROJECT_NAME failed timing constraints.";

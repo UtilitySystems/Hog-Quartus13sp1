@@ -398,10 +398,10 @@ jobs:
                     cat bin/$PROJECT_NAME*/timing_* >> note.md;
                   fi;
                   if ls bin/$PROJECT_NAME*/timing_error.txt >/dev/null 2>&1; then
+                    echo "Copying the Project folder for debugging purposes inside bin/";
+                    cp -r Projects/ bin/Projects;
                     if [ ${{ inputs.HOG_FAIL_TIMING}} ]; then
                       echo "Hog-CI(error) - Project $PROJECT_NAME failed timing constraints. Failing the job as requested.";
-                      echo "Copying the Project folder for debugging purposes inside bin/";
-                      cp -r Projects/ bin/Projects;
                       exit 1;
                     else
                       echo "Hog-CI(critical warning) - Project $PROJECT_NAME failed timing constraints.";
