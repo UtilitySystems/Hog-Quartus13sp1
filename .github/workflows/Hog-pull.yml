@@ -60,6 +60,9 @@ on:
       HOG_SIM_COMPILE_ONLY:
         required: false
         type: string
+      HOG_FAIL_TIMING:
+        required: false
+        type: string
     secrets:
       HOG_PUSH_TOKEN:
         required: true
@@ -393,6 +396,16 @@ jobs:
                   fi;
                   if [[ -f bin/$PROJECT_NAME*/timing_* ]]; then
                     cat bin/$PROJECT_NAME*/timing_* >> note.md;
+                  fi;
+                  if ls bin/$PROJECT_NAME*/timing_error.txt >/dev/null 2>&1; then
+                    if [ ${{ inputs.HOG_FAIL_TIMING}} ]; then
+                      echo "Hog-CI(error) - Project $PROJECT_NAME failed timing constraints. Failing the job as requested.";
+                      echo "Copying the Project folder for debugging purposes inside bin/";
+                      cp -r Projects/ bin/Projects
+                      exit 1;
+                    else
+                      echo "Hog-CI(critical warning) - Project $PROJECT_NAME failed timing constraints.";
+                    fi;
                   fi;
                 fi;
               fi;
