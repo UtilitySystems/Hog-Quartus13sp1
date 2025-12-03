@@ -401,7 +401,7 @@ jobs:
                     if [ ${{ inputs.HOG_FAIL_TIMING}} ]; then
                       echo "Hog-CI(error) - Project $PROJECT_NAME failed timing constraints. Failing the job as requested.";
                       echo "Copying the Project folder for debugging purposes inside bin/";
-                      cp -r Projects/ bin/Projects
+                      cp -r Projects/ bin/Projects;
                       exit 1;
                     else
                       echo "Hog-CI(critical warning) - Project $PROJECT_NAME failed timing constraints.";
