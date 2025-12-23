@@ -89,7 +89,7 @@ set default_commands {
     set do_bitstream 1
     set do_compile 1
     set recreate 1
-    set do_vitis_build 1
+    set do_vitis_build 0
   # NAME: CREATEWORKFLOW or CW
   # DESCRIPTION: Creates the project -even if existing- and launches the complete workflow.
   # OPTIONS: check_syntax, ext_path.arg, njobs.arg, no_bitstream, synth_only, vivado_only, vitis_only, xsa.arg verbose
@@ -172,9 +172,7 @@ set default_commands {
 
   default {
     if {$directive != ""} {
-      Msg Status "ERROR: Unknown directive $directive.\n\n"
-      puts $usage
-      exit 1
+      set NO_DIRECTIVE_FOUND 1
     } else {
       puts "$usage"
       exit 0
@@ -227,13 +225,11 @@ if {[IsQuartus]} {
 
 # Msg Debug "s: $::argv0 a: $argv"
 
-set commands_path [file normalize "$tcl_path/../../hog-commands/"]
 ### CUSTOM COMMANDS ###
-set custom_commands [GetCustomCommands $commands_path 1]
-set custom_usage [GetCustomCommands $commands_path]
-# append usage "\n** Options:"
+set commands_path [file normalize "$tcl_path/../../hog-commands/"]
+set custom_commands [GetCustomCommands $parameters $commands_path ]
 
-lassign [InitLauncher $::argv0 $tcl_path $parameters $default_commands $argv $custom_usage] \
+lassign [InitLauncher $::argv0 $tcl_path $parameters $default_commands $argv $custom_commands] \
 directive project project_name group_name repo_path old_path bin_dir top_path usage short_usage cmd ide list_of_options
 
 array set options $list_of_options
@@ -277,8 +273,68 @@ set do_compile_lib 0
 set do_sigasi 0
 set do_hierarchy 0
 
-Msg Debug "Looking for a $directive in : $default_commands $custom_commands"
-switch -regexp -- $directive "$default_commands $custom_commands"
+set NO_DIRECTIVE_FOUND 0
+Msg Debug "Looking for a $directive in : $default_commands"
+switch -regexp -- $directive $default_commands
+
+if {$NO_DIRECTIVE_FOUND == 1} {
+  Msg Debug "No directive found in default commands, looking in custom commands..."
+  if {[string length $custom_commands] > 0 && [dict exists $custom_commands $directive]} {
+    Msg Debug "Directive $directive found in custom commands."
+    if {$cmd == "custom_tcl"} {
+      eval [dict get $custom_commands $directive SCRIPT]
+      exit
+    } else {
+      if {[IsTclsh]} {
+        Msg Info "Launching command: $cmd..."
+
+        # Check if the IDE is actually in the path...
+        set ret [catch {exec which $ide}]
+        if {$ret != 0} {
+          Msg Error "$ide not found in your system. Make sure to add $ide to your PATH enviromental variable."
+          exit $ret
+        }
+
+        if {[string first libero $cmd] >= 0} {
+          # The SCRIPT_ARGS: flag of libero makes tcl crazy...
+          # Let's pipe the command into a shell script and remove it later
+          set libero_script [open "launch-libero-hog.sh" w]
+          puts $libero_script "#!/bin/sh"
+          puts $libero_script $cmd
+          close $libero_script
+          set cmd "sh launch-libero-hog.sh"
+        }
+
+        set ret [catch {exec -ignorestderr {*}$cmd >@ stdout} result]
+
+        if {$ret != 0} {
+          Msg Error "IDE returned an error state."
+        } else {
+          Msg Info "All done."
+          exit 0
+        }
+
+        if {[string first libero $cmd] >= 0} {
+          file delete "launch-libero-hog.sh"
+        }
+
+        exit $ret
+      }
+
+      eval [dict get $custom_commands $directive SCRIPT]
+
+      set no_exit [dict get $custom_commands $directive NO_EXIT]
+      if {$no_exit == 0} {
+        exit
+      }
+    }
+  } else {
+      Msg Info "No directive found, pre ide exiting..."
+      Msg Status "ERROR: Unknown directive $directive.\n\n"
+      puts $usage
+      exit
+  }
+}
 
 if {$options(all) == 1} {
   set do_list_all 1
@@ -377,6 +433,31 @@ if {$cmd == -1} {
         -list_files ".src,.ext" $proj_list_dir $repo_path]\
         listLibraries listProperties listSrcSets
     Hierarchy $listProperties $listLibraries $repo_path $output_path
+    exit 0
+  }
+  if {$do_sigasi == 1} {
+    cd $repo_path
+    Msg Info "Creating Sigasi CSV files for project $project_name..."
+    set proj_dir $repo_path/Top/$project_name
+    set proj_list_dir $repo_path/Top/$project_name/list
+    set project [file tail $project_name]
+    lassign [GetHogFiles -list_files {.src} $proj_list_dir $repo_path] libraries
+    set csv_file [open "sigasi_$project.csv" w]
+    foreach lib $libraries {
+      set source_files [DictGet $libraries $lib]
+      foreach source_file $source_files {
+        if {[file extension $source_file] == ".vhd" ||
+            [file extension $source_file] == ".vhdl" ||
+            [file extension $source_file] == ".sv" ||
+            [file extension $source_file] == ".v" } {
+          puts $csv_file [ concat  [file rootname $lib] "," $source_file ]
+        }
+      }
+    }
+    close $csv_file
+    Msg Info "Sigasi CSV file created: sigasi_$project.csv"
+    Msg Info "You can use the python script provided by Sigasi to convert the generated csv file into a Sigasi project."
+    Msg Info "More info at: https://www.sigasi.com/knowledge/how_tos/generating-sigasi-project-vivado-project/#2-generate-the-sigasi-project-files-from-the-csv-file"
     exit 0
   }
 
@@ -734,60 +815,6 @@ if {$do_check_list_files} {
 
   source $tcl_path/utils/check_list_files.tcl
 }
-
-
-if {$do_sigasi} {
-  Msg Info "Creating Sigasi file for $project..."
-
-  #Simulation
-  set csv_name "${project}_sigasi_sim.csv"
-  #Create IPs here
-  Msg Info "Generating IP targets for simulations..."
-  foreach ip [get_ips] {
-    set targets [list_targets [get_files [file tail [get_property IP_FILE $ip]]]]
-    if {[lsearch -exact $targets simulation] >= 0} {
-      generate_target simulation $ip
-    } else {
-      Msg Warning "IP $ip is not a simulation target, skipping..."
-    }
-  }
-
-  # tclint-disable-next-line line-length
-  set source_files [get_files -filter {(FILE_TYPE == VHDL || FILE_TYPE == "VHDL 2008" || FILE_TYPE == "VHDL 2019" || FILE_TYPE == VERILOG || FILE_TYPE == SYSTEMVERILOG) && USED_IN_SIMULATION == 1 }]
-  if {$options(dst_dir) == ""} {
-    set dst_path "$repo_path"
-  } else {
-    set dst_path $repo_path/$options(dst_dir)
-    if {![file exists $dst_path]} {
-      Msg Info "Creating $dst_path..."
-      file mkdir $dst_path
-    }
-  }
-
-  Msg Info "Creating sigasi csv file for simulation $dst_path/$csv_name..."
-  set csv_file [open $dst_path/$csv_name w]
-
-  foreach source_file $source_files {
-    puts $csv_file [concat [get_property LIBRARY $source_file] "," $source_file]
-  }
-  close $csv_file
-
-  #Synthesis
-  set csv_name "${project}_sigasi_synth.csv"
-  Msg Info "Generating IP targets for synthesis..."
-  foreach ip [get_ips] {
-    generate_target synthesis $ip
-  }
-  # tclint-disable-next-line line-length
-  set source_files [get_files -filter {(FILE_TYPE == VHDL || FILE_TYPE == "VHDL 2008" || FILE_TYPE == "VHDL 2019" || FILE_TYPE == VERILOG || FILE_TYPE == SYSTEMVERILOG) && USED_IN_SYNTHESIS == 1 }]
-  Msg Info "Creating sigasi csv file for synthesis $dst_path/$csv_name..."
-  set csv_file [open $dst_path/$csv_name w]
-  foreach source_file $source_files {
-    puts $csv_file [concat [get_property LIBRARY $source_file] "," $source_file]
-  }
-  close $csv_file
-}
-
 ## CLOSE Project
 CloseProject
 

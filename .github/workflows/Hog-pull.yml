@@ -51,6 +51,18 @@ on:
       HOG_NJOBS:
         required: false
         type: string
+      HOG_SIMSETS:
+        required: false
+        type: string
+      HOG_SIM_ONLY_SCRIPTS:
+        required: false
+        type: string
+      HOG_SIM_COMPILE_ONLY:
+        required: false
+        type: string
+      HOG_FAIL_TIMING:
+        required: false
+        type: string
     secrets:
       HOG_PUSH_TOKEN:
         required: true
@@ -385,6 +397,16 @@ jobs:
                   if [[ -f bin/$PROJECT_NAME*/timing_* ]]; then
                     cat bin/$PROJECT_NAME*/timing_* >> note.md;
                   fi;
+                  if ls bin/$PROJECT_NAME*/timing_error.txt >/dev/null 2>&1; then
+                    echo "Copying the Project folder for debugging purposes inside bin/";
+                    cp -r Projects/ bin/Projects;
+                    if [ ${{ inputs.HOG_FAIL_TIMING}} ]; then
+                      echo "Hog-CI(error) - Project $PROJECT_NAME failed timing constraints. Failing the job as requested.";
+                      exit 1;
+                    else
+                      echo "Hog-CI(critical warning) - Project $PROJECT_NAME failed timing constraints.";
+                    fi;
+                  fi;
                 fi;
               fi;
               if [[ -f "bin/$PROJECT_NAME*/utilization.txt" ]]; then
@@ -456,7 +478,18 @@ jobs:
                 if [ -n "${{ inputs.HOG_DEBUG_MODE }}" ] && [ "${{ inputs.HOG_DEBUG_MODE }}" == '1' ]; then
                   echo "Hog-CI(info) - The simulation workflow will be run in verbose mode.";
                 fi;
-                SIM_CMD="./Hog/Do SIMULATE $PROJECT_NAME";
+                if [ -n "${{ inputs.HOG_SIM_ONLY_SCRIPTS }}" ] && [ "${{ inputs.HOG_SIM_ONLY_SCRIPTS }}" = '1' ]; then
+                  export SIM_ONLY="-scripts_only";
+                fi;
+                if [ -n "${{ inputs.HOG_SIM_COMPILE_ONLY }}" ] && [ "${{ inputs.HOG_SIM_COMPILE_ONLY }}" = '1' ]; then
+                  export COMPILE_ONLY="-compile_only";
+                fi;
+                if [ -n "${{ inputs.HOG_SIMSETS }}" ] && [ "${{ inputs.HOG_SIMSETS }}" != "" ]; then
+                  export SIMSETS="-simset ${{ inputs.HOG_SIMSETS }}";
+                else
+                  export SIMSETS="";
+                fi;
+                SIM_CMD="./Hog/Do SIMULATE $PROJECT_NAME $SIM_ONLY $COMPILE_ONLY $SIMSETS";
                 if [ -z "$HOG_APPTAINER_IMAGE" ]; then
                   echo $SIM_CMD;
                   $(echo $SIM_CMD);

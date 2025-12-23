@@ -84,7 +84,12 @@
         if [ -n "$HOG_SIM_COMPILE_ONLY" ] && [ "$HOG_SIM_COMPILE_ONLY" = '1' ]; then
           export COMPILE_ONLY="-compile_only";
         fi;
-        SIM_CMD="./Hog/Do SIMULATE $PROJECT_NAME $SIM_ONLY $COMPILE_ONLY";
+        if [ -n "$HOG_SIMSETS" ] && [ "$HOG_SIMSETS" != "" ]; then
+          export SIMSETS="-simset $HOG_SIMSETS";
+        else
+          export SIMSETS="";
+        fi;
+        SIM_CMD="./Hog/Do SIMULATE $PROJECT_NAME $SIM_ONLY $COMPILE_ONLY $SIMSETS";
         if [[ -f $HOG_APPTAINER_IMAGE ]]; then
           echo "apptainer exec -H $PWD $HOG_APPTAINER_IMAGE $SIM_CMD";
           if [[ -n $HOG_APPTAINER_EXTRA_PATH ]]; then
@@ -259,6 +264,16 @@
           fi;
           if [ -f "$CI_PROJECT_DIR/Projects/$PROJECT_NAME/versions.txt" ]; then
             cp $CI_PROJECT_DIR/Projects/$PROJECT_NAME/versions.txt $CI_PROJECT_DIR/bin/$PROJECT_NAME*/;
+          fi;
+          if ls $CI_PROJECT_DIR/bin/$PROJECT_NAME*/timing_error.txt >/dev/null 2>&1; then
+            echo "Copying the Project folder for debugging purposes inside bin/";
+            cp -r $CI_PROJECT_DIR/Projects $CI_PROJECT_DIR/bin/Projects;
+            if [ -n "$HOG_FAIL_TIMING" ] && [ "$HOG_FAIL_TIMING" = '1' ]; then
+              echo "Hog-CI(error) - Project $PROJECT_NAME failed timing constraints. Failing the job as requested.";
+              exit 1;
+            else
+              echo "Hog-CI(critical warning) - Project $PROJECT_NAME failed timing constraints.";
+            fi;
           fi;
         fi;
         echo "Hog-CI(info) - All done.";

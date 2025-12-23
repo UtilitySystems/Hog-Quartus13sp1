@@ -259,6 +259,7 @@ if {[IsXilinx]} {
       set dcp_dir [file normalize "$repo_path/DCPs/$group_name/$proj_name/impl_dcp"]
       file mkdir $dcp_dir
       set dcps [glob -nocomplain "$run_dir/impl*/*.dcp"]
+      puts $dcps
       if {[file exists [lindex $dcps 0]]} {
         file copy -force {*}$dcps $dcp_dir
       }
