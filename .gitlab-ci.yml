@@ -31,6 +31,57 @@ default:
 
 stages: [mirrors, merge_checks, tag, build_doc]
 
+test_launch_commands:
+  stage: merge_checks
+  tags:
+    - hog
+  only:
+    refs: [merge_requests]
+    variables: [$CI_MERGE_REQUEST_TARGET_BRANCH_NAME =~ /^(master|develop)$/]
+  except:
+    variables: [$CI_COMMIT_REF_NAME =~ /^test\/.*$/i]
+  variables:
+    HOG_LOGGER: "ENABLED"
+    HOG_COLOR: 2
+    HOG_PATH: "/opt/Xilinx/Vivado/2022.2/bin:/afs/cern.ch/work/l/l0mdtel/questa/2019.4/questasim/linux_x86_64:/opt/cactus/bin/uhal/tools/:/opt/intelFPGA/19.1/quartus/bin:/opt/intelFPGA/19.1/nios2eds/bin:/opt/intelFPGA/19.1/quartus/sopc_builder/bin:/opt/Xilinx/14.7/ISE_DS/PlanAhead/bin:/home/microchip/Libero_SoC_v2022.2/Libero/bin"
+  script:
+    - git clone --recursive https://hog_user:${HOG_PUSH_TOKEN}@gitlab.com/hog-cern/test/TestFirmware.git
+    - cd TestFirmware/Hog
+    - git checkout $CI_COMMIT_SHA
+    - cd ..
+    - ./Hog/Do LIST
+    - ./Hog/Do LIST -all
+    - ./Hog/Do HELP
+    - ./Hog/Do BUTTONS
+    - ./Hog/Do CREATE example_2022.2
+    - ./Hog/Do RTL example_2022.2
+    - ./Hog/Do CHECKSYNTAX example_2022.2
+    - ./Hog/Do CHECKSYNTAX example_2022.2 -verbose
+    - ./Hog/Do CHECKSYNTAX example_2022.2 -recreate
+    - ./Hog/Do CHECKLIST example_2022.2
+    - ./Hog/Do CHECKLIST example_2022.2 -verbose
+    - ./Hog/Do CHECKYAML
+    - ./Hog/Do CHECKYAML -verbose
+    - ./Hog/Do VIEW example_2022.2
+    - ./Hog/Do VIEW example_2022.2 -verbose
+    - ./Hog/Do HIERARCHY example_2022.2
+    - ./Hog/Do HIERARCHY example_2022.2 -verbose
+    - ./Hog/Do HIERARCHY example_2022.2 -output hierarchy.txt
+    - ./Hog/Do SIGASI example_2022.2
+    - ./Hog/Do SIGASI example_2022.2 -verbose
+    - ./Hog/Do XML example_2022.2
+    - ./Hog/Do XML example_2022.2 -generate
+    - ./Hog/Do XML example_2022.2 -verbose
+    - ./Hog/Do XML example_2022.2 -dst_dir ./xml_output
+  artifacts:
+    paths:
+      - TestFirmware/hierarchy.txt
+      - TestFirmware/xml_output/
+      - TestFirmware/Top/example_vivado_vitis_zynqmp/*.csv
+    expire_in: 1 week
+  interruptible: true
+  allow_failure: false
+
 launch_github:
   stage: merge_checks
   image: hogcern/hog:develop
