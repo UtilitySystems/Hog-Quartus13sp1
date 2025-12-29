@@ -1796,7 +1796,9 @@ proc GenericToSimulatorString {prop_dict target} {
     regexp {^([0-9]*)$} $theValue valueIntFull ValueInt
     regexp {(?!^\d+$)^.+$} $theValue valueStrFull ValueStr
     if {[string tolower $target] == "vivado" || [string tolower $target] == "xsim"} {
-      if {$valueNumBits != "" && $valueHexFlag != "" && $valueHex != ""} {
+      if {[string tolower $theValue] == "true" || [string tolower $theValue] == "false"} {
+        set prj_generics "$prj_generics $theKey=$theValue"
+      } elseif {$valueNumBits != "" && $valueHexFlag != "" && $valueHex != ""} {
         set prj_generics "$prj_generics $theKey=$valueHexFull"
       } elseif {$valueIntFull != "" && $ValueInt != ""} {
         set prj_generics "$prj_generics $theKey=$ValueInt"
