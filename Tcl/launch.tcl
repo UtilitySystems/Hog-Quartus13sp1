@@ -166,7 +166,7 @@ set default_commands {
   # OPTIONS: verbose
   }
 
-  \^HIE(RARCHY)?$ {
+  \^HIE(RARCHY)?$ {#
     set do_hierarchy 1
   # NAME: HIERARCHY or HIE
   # DESCRIPTION: Print the design hierarchy for the chosen project.
