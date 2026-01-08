@@ -168,7 +168,7 @@ set default_commands {
     set do_hierarchy 1
   # NAME: HIERARCHY or HIE
   # DESCRIPTION: Print the design hierarchy for the chosen project.
-  # OPTIONS: ext_path.arg, output.arg, verbose
+  # OPTIONS: ext_path.arg, output.arg, light, verbose
   }
 
   default {
@@ -212,6 +212,7 @@ set parameters {
   {dst_dir.arg  "" "For reports, IPbus XMLs, set the destination folder (default is in the ./bin folder)."}
   {output.arg   "" "For hierarchy, set the output file (default is console)."}
   {verbose         "If set, launch the script in verbose mode"}
+  {light}         "If set, print a light version of the hierarchy (without paths)."}
 }
 
 set tcl_path [file normalize "[file dirname [info script]]"]
@@ -254,6 +255,10 @@ if {$options(output) != ""} {
   set output_path $options(output)
 }
 
+set light_hierarchy 0
+if {$options(light)} == 1 {
+  set light_hierarchy 1
+}
 
 ######## DEFAULTS #########
 set do_rtl 0
@@ -433,7 +438,7 @@ if {$cmd == -1} {
     lassign [GetHogFiles -ext_path $ext_path \
         -list_files ".src,.ext" $proj_list_dir $repo_path]\
         listLibraries listProperties listSrcSets
-    Hierarchy $listProperties $listLibraries $repo_path $output_path
+    Hierarchy $listProperties $listLibraries $repo_path $output_path $light_hierarchy
     exit 0
   }
   if {$do_sigasi == 1} {
