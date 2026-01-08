@@ -168,7 +168,7 @@ set default_commands {
     set do_hierarchy 1
   # NAME: TREE or T
   # DESCRIPTION: Print the design hierarchy for the chosen project.
-  # OPTIONS: ext_path.arg, output.arg, verbose
+  # OPTIONS: ext_path.arg, output.arg, print_filename, verbose
   }
 
   default {
@@ -211,6 +211,7 @@ set parameters {
   {generate        "For IPbus XMLs, it will re create the VHDL address decode files."}
   {dst_dir.arg  "" "For reports, IPbus XMLs, set the destination folder (default is in the ./bin folder)."}
   {output.arg   "" "For tree hierarchy mode, set the output file (default is console)."}
+  {print_file   "" "For tree hierarchy mode, print the file name and path as well as module name."}
   {verbose         "If set, launch the script in verbose mode"}
 }
 
@@ -254,6 +255,7 @@ if {$options(output) != ""} {
   set output_path $options(output)
 }
 
+set print_filename $options(print_file)
 
 ######## DEFAULTS #########
 set do_rtl 0
@@ -433,7 +435,7 @@ if {$cmd == -1} {
     lassign [GetHogFiles -ext_path $ext_path \
         -list_files ".src,.ext" $proj_list_dir $repo_path]\
         listLibraries listProperties listSrcSets
-    Hierarchy $listProperties $listLibraries $repo_path $output_path
+    Hierarchy $listProperties $listLibraries $repo_path $output_path $print_filename
     exit 0
   }
   if {$do_sigasi == 1} {
