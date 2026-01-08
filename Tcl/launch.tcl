@@ -164,9 +164,9 @@ set default_commands {
   # OPTIONS: verbose
   }
 
-  \^HIE(RARCHY)?$ {#
+  \^T(REE)?$ {#
     set do_hierarchy 1
-  # NAME: HIERARCHY or HIE
+  # NAME: TREE or T
   # DESCRIPTION: Print the design hierarchy for the chosen project.
   # OPTIONS: ext_path.arg, output.arg, verbose
   }
@@ -210,7 +210,7 @@ set parameters {
   {all             "List all projects, including test projects. Test projects have #test on the second line of hog.conf."}
   {generate        "For IPbus XMLs, it will re create the VHDL address decode files."}
   {dst_dir.arg  "" "For reports, IPbus XMLs, set the destination folder (default is in the ./bin folder)."}
-  {output.arg   "" "For hierarchy, set the output file (default is console)."}
+  {output.arg   "" "For tree hierarchy mode, set the output file (default is console)."}
   {verbose         "If set, launch the script in verbose mode"}
 }
 
