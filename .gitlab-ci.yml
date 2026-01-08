@@ -54,26 +54,26 @@ test_launch_commands:
     - ./Hog/Do LIST -all
     - ./Hog/Do HELP
     - ./Hog/Do BUTTONS
-    - ./Hog/Do CREATE example_2022.2
-    - ./Hog/Do RTL example_2022.2
-    - ./Hog/Do CHECKSYNTAX example_2022.2
-    - ./Hog/Do CHECKSYNTAX example_2022.2 -verbose
-    - ./Hog/Do CHECKSYNTAX example_2022.2 -recreate
-    - ./Hog/Do CHECKLIST example_2022.2
-    - ./Hog/Do CHECKLIST example_2022.2 -verbose
+    - ./Hog/Do CREATE example2022.2
+    - ./Hog/Do RTL example2022.2
+    - ./Hog/Do CHECKSYNTAX example2022.2
+    - ./Hog/Do CHECKSYNTAX example2022.2 -verbose
+    - ./Hog/Do CHECKSYNTAX example2022.2 -recreate
+    - ./Hog/Do CHECKLIST example2022.2
+    - ./Hog/Do CHECKLIST example2022.2 -verbose
     - ./Hog/Do CHECKYAML
     - ./Hog/Do CHECKYAML -verbose
-    - ./Hog/Do VIEW example_2022.2
-    - ./Hog/Do VIEW example_2022.2 -verbose
-    - ./Hog/Do HIERARCHY example_2022.2
-    - ./Hog/Do HIERARCHY example_2022.2 -verbose
-    - ./Hog/Do HIERARCHY example_2022.2 -output hierarchy.txt
-    - ./Hog/Do SIGASI example_2022.2
-    - ./Hog/Do SIGASI example_2022.2 -verbose
-    - ./Hog/Do XML example_2022.2
-    - ./Hog/Do XML example_2022.2 -generate
-    - ./Hog/Do XML example_2022.2 -verbose
-    - ./Hog/Do XML example_2022.2 -dst_dir ./xml_output
+    - ./Hog/Do VIEW example2022.2
+    - ./Hog/Do VIEW example2022.2 -verbose
+    - ./Hog/Do HIERARCHY example2022.2
+    - ./Hog/Do HIERARCHY example2022.2 -verbose
+    - ./Hog/Do HIERARCHY example2022.2 -output hierarchy.txt
+    - ./Hog/Do SIGASI example2022.2
+    - ./Hog/Do SIGASI example2022.2 -verbose
+    - ./Hog/Do XML example2022.2
+    - ./Hog/Do XML example2022.2 -generate
+    - ./Hog/Do XML example2022.2 -verbose
+    - ./Hog/Do XML example2022.2 -dst_dir ./xml_output
   artifacts:
     paths:
       - TestFirmware/hierarchy.txt
