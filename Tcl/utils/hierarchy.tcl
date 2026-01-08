@@ -34,6 +34,8 @@ proc parse_hdl {f toplib} {
 
   # ------------ VHDL ------------
   if { $ext eq ".vhd" || $ext eq ".vhdl" } {
+    set txt [regsub -all -line {^\s*--.*$} $txt ""]
+
     # Find entities
     foreach {full name} [regexp -inline -all -nocase {entity[ \t\r\n]+(\w+)[ \t\r\n]+is} $txt] {
       # puts "Found entity: $name"
@@ -62,8 +64,12 @@ proc parse_hdl {f toplib} {
     }
   }
 
+
   # ---- Verilog ---------
   if {[IsVerilog $f]} {
+    # Remove comments from Verilog
+    set txt [regsub -all {^\s*//.*$} $txt ""]
+
     foreach {full name} [regexp -all -inline -line {^(?!\s*//)\s*module\s+(\w+)} $txt] {
       set module_name $name
     }
@@ -83,7 +89,11 @@ proc parse_hdl {f toplib} {
 }
 
 # Recursive procedure to print hierarchical module dependencies
+<<<<<<< HEAD
 proc print_hierarchy {topfile topdeps toppath alldeps allmods repo_path output_file {filename 0} {label ""} {indent 0} {last 0} } {
+=======
+proc print_hierarchy {topfile topdeps toppath alldeps allmods repo_path output_file {light 0} {label ""} {indent 0} {last 0} {prev_line ""} } {
+>>>>>>> origin/fix_hierarchy_indent
     # We use a variable to track whether each ancestor level was the last node
     variable last_flags
     if {![info exists last_flags]} {
@@ -92,12 +102,12 @@ proc print_hierarchy {topfile topdeps toppath alldeps allmods repo_path output_f
 
     # Build indentation string
     set indent_str ""
-    for {set i 0} {$i < [llength $last_flags]} {incr i} {
-        if {[lindex $last_flags $i]} {
-            append indent_str "     "   ;# previous level was last → no vertical bar
-        } else {
-            append indent_str "│    "
-        }
+    for {set i 0} {$i < [llength $last_flags] - 1 } {incr i} {
+      if {[string index $prev_line [string length $indent_str]] == "|" || [string index $prev_line [string length $indent_str]] == "├"} {
+        append indent_str "|     "
+      } else {
+        append indent_str "      "
+      }
     }
 
     # Choose connector symbols
@@ -112,21 +122,30 @@ proc print_hierarchy {topfile topdeps toppath alldeps allmods repo_path output_f
     }
 
     # Print current node (if not the very first root path)
+
+    set path "([Relative [file normalize $repo_path] $toppath 1])"
+    if {$light == 1} {
+      set path ""
+    }
     if {[Relative [file normalize $repo_path] $toppath 1] != ""} {
         if {$label != ""} {
+<<<<<<< HEAD
 	  if {$filename == 1} {
 	    set p_file_name " ([Relative [file normalize $repo_path] $toppath 1])"
 	  } else {
 	    set p_file_name ""
 	  }
 	  puts "${indent_str}${connector}$label:$topfile$p_file_name"
+=======
+            puts "${indent_str}${connector}$label:$topfile $path"
+>>>>>>> origin/fix_hierarchy_indent
             if {$output_file != ""} {
-              puts $output_file "${indent_str}${connector}$label:$topfile ([Relative [file normalize $repo_path] $toppath 1])"
+              puts $output_file "${indent_str}${connector}$label:$topfile $path"
             }
         } else {
-            puts "${indent_str}${connector}$topfile ([Relative [file normalize $repo_path] $toppath 1])"
+            puts "${indent_str}${connector}$topfile $path"
             if {$output_file != ""} {
-              puts $output_file "${indent_str}${connector}$topfile ([Relative [file normalize $repo_path] $toppath 1])"
+              puts $output_file "${indent_str}${connector}$topfile $path"
             }
         }
     }
@@ -148,15 +167,24 @@ proc print_hierarchy {topfile topdeps toppath alldeps allmods repo_path output_f
         set f [string range $f [expr {[string first ":" $f] + 1}] end]
         set file_deps [DictGet $alldeps $f]
         set file_path [DictGet $allmods $f]
+<<<<<<< HEAD
         print_hierarchy $f $file_deps $file_path $alldeps $allmods $repo_path $output_file $filename\
             $label [expr {$indent + 1}] [expr {$i == $num_deps}]
+=======
+        print_hierarchy $f $file_deps $file_path $alldeps $allmods $repo_path $output_file\
+            $light $label [expr {$indent + 1}] [expr {$i == $num_deps}]  "${indent_str}${connector}"
+>>>>>>> origin/fix_hierarchy_indent
     }
 
     # Pop this level’s flag before returning
     set last_flags [lrange $last_flags 0 end-1]
 }
 
+<<<<<<< HEAD
 proc Hierarchy {listProperties listLibraries repo_path {output_path ""} {print_filename 0}} {
+=======
+proc Hierarchy {listProperties listLibraries repo_path {output_path ""} {light 0}} {
+>>>>>>> origin/fix_hierarchy_indent
   # Find top module in the list of libraries
   dict for {f p} $listProperties {
     set top [lindex [regexp -inline {\ytop\s*=\s*(.+?)\y.*} $p] 1]
@@ -200,7 +228,11 @@ proc Hierarchy {listProperties listLibraries repo_path {output_path ""} {print_f
   } else {
     set output_file ""
   }
+<<<<<<< HEAD
   print_hierarchy $topmodule $topdeps $toppath $deps $mods $repo_path $output_file $print_filename
+=======
+  print_hierarchy $topmodule $topdeps $toppath $deps $mods $repo_path $output_file $light
+>>>>>>> origin/fix_hierarchy_indent
 
   if {$output_path != ""} {
     close $output_file

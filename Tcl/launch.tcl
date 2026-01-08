@@ -168,7 +168,7 @@ set default_commands {
     set do_hierarchy 1
   # NAME: TREE or T
   # DESCRIPTION: Print the design hierarchy for the chosen project.
-  # OPTIONS: ext_path.arg, output.arg, print_file, verbose
+  # OPTIONS: ext_path.arg, output.arg, light, verbose
   }
 
   default {
@@ -213,6 +213,7 @@ set parameters {
   {output.arg   "" "For tree hierarchy mode, set the output file (default is console)."}
   {print_file   "" "For tree hierarchy mode, print the file name and path as well as module name."}
   {verbose         "If set, launch the script in verbose mode"}
+  {light         "If set, print a light version of the hierarchy (without paths)."}
 }
 
 set tcl_path [file normalize "[file dirname [info script]]"]
