@@ -35,13 +35,14 @@ proc parse_hdl {f toplib} {
   # ------------ VHDL ------------
   if { $ext eq ".vhd" || $ext eq ".vhdl" } {
     # Find entities
-    foreach {full name} [regexp -inline -all -nocase {entity[ \t\r\n]+(\w+)[ \t\r\n]+is} $txt] {
+    foreach {full name} [regexp -inline -all -nocase {(?m)^(?![ \t]*--).*entity[ \t\r\n]+(\w+)[ \t\r\n]+is} $txt] {
       # puts "Found entity: $name"
       set module_name $name
       # puts $module_name
     }
     # Find instantiations (label : entity work.child ... OR label : child)
-    foreach {im inst lib match} [regexp -all -inline -nocase {(\w+)\s*:\s*entity\s+(\w+)[\s\n\r]*\.[\s\n\r]*(\w+)} $txt] {
+    foreach {im inst lib match} \
+    [regexp -all -inline -nocase {(?m)^(?![ \t]*--).*?(\w+)\s*:\s*entity\s+(\w+)[\s\n\r]*\.[\s\n\r]*(\w+)} $txt] {
       set child [lindex $im 0]
       # To be safe, only register if child is also a known module/entity
       if {[string equal -nocase $lib "work"]} {
@@ -51,11 +52,15 @@ proc parse_hdl {f toplib} {
       }
     }
     # Find component instantiations (component child is ... end component)
-    foreach {im component} [regexp -all -inline -nocase {component[ \t\r\n]+(\w+)[ \t\r\n]+is} $txt] {
+    foreach {cm label} [regexp -inline -all -nocase [format {(\w+)[ \t\r\n]*:[ \t\r\n]*%s} $component] $txt] {
+
       # puts "Found component: $component"
       # lappend modules ips.$component
       # Find component instantiation labels (label : component_name ...)
-      foreach {cm label} [regexp -inline -all -nocase [format {(\w+)[ \t\r\n]*:[ \t\r\n]*%s} $component] $txt] {
+    foreach {cm label} \
+    [regexp -inline -all -nocase \
+        [format {(?m)^(?![ \t]*--).*?(\w+)[ \t\r\n]*:[ \t\r\n]*%s} $component] \
+        $txt] {
         # puts "Found component instantiation: $label / $component"
         lappend modules $label:ips.$component
       }
