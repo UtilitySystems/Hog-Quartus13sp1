@@ -45,6 +45,7 @@ test_launch_commands:
     HOG_COLOR: 2
     HOG_PATH: "/opt/Xilinx/Vivado/2022.2/bin:/afs/cern.ch/work/l/l0mdtel/questa/2019.4/questasim/linux_x86_64:/opt/cactus/bin/uhal/tools/:/opt/intelFPGA/19.1/quartus/bin:/opt/intelFPGA/19.1/nios2eds/bin:/opt/intelFPGA/19.1/quartus/sopc_builder/bin:/opt/Xilinx/14.7/ISE_DS/PlanAhead/bin:/home/microchip/Libero_SoC_v2022.2/Libero/bin"
   script:
+    - export PATH=$HOG_PATH:$PATH
     - git clone --recursive https://hog_user:${HOG_PUSH_TOKEN}@gitlab.com/hog-cern/test/TestFirmware.git
     - cd TestFirmware/Hog
     - git checkout $CI_COMMIT_SHA
