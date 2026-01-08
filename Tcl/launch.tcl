@@ -256,7 +256,7 @@ if {$options(output) != ""} {
 }
 
 set light_hierarchy 0
-if {$options(light)} == 1 {
+if {$options(light) == 1} {
   set light_hierarchy 1
 }
 
