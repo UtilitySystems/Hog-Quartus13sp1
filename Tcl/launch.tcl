@@ -168,7 +168,7 @@ set default_commands {
     set do_hierarchy 1
   # NAME: TREE or T
   # DESCRIPTION: Print the design hierarchy for the chosen project.
-  # OPTIONS: ext_path.arg, output.arg, print_filename, verbose
+  # OPTIONS: ext_path.arg, output.arg, print_file, verbose
   }
 
   default {
