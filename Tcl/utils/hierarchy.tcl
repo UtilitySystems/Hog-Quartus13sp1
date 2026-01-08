@@ -35,13 +35,13 @@ proc parse_hdl {f toplib} {
   # ------------ VHDL ------------
   if { $ext eq ".vhd" || $ext eq ".vhdl" } {
     # Find entities
-    foreach {full name} [regexp -inline -all -nocase {entity[ \t\r\n]+(\w+)[ \t\r\n]+is} $txt] {
+    foreach {full name} [regexp -inline -all -nocase {(?:^|[\n\r])(?!\s*--)\s*entity[ \t\r\n]+(\w+)[ \t\r\n]+is} $txt] {
       # puts "Found entity: $name"
       set module_name $name
       # puts $module_name
     }
     # Find instantiations (label : entity work.child ... OR label : child)
-    foreach {im inst lib match} [regexp -all -inline -nocase {(\w+)\s*:\s*entity\s+(\w+)[\s\n\r]*\.[\s\n\r]*(\w+)} $txt] {
+    foreach {im inst lib match} [regexp -all -inline -nocase {(?:^|[\n\r])(?!\s*--).*?(\w+)\s*:\s*entity\s+(\w+)[\s\n\r]*\.[\s\n\r]*(\w+)} $txt] {
       set child [lindex $im 0]
       # To be safe, only register if child is also a known module/entity
       if {[string equal -nocase $lib "work"]} {
@@ -51,13 +51,13 @@ proc parse_hdl {f toplib} {
       }
     }
     # Find component instantiations (component child is ... end component)
-    foreach {im component} [regexp -all -inline -nocase {component[ \t\r\n]+(\w+)[ \t\r\n]+is} $txt] {
+    foreach {im component} [regexp -all -inline -nocase {(?:^|[\n\r])(?!\s*--)\s*component[ \t\r\n]+(\w+)[ \t\r\n]+is} $txt] {
       # puts "Found component: $component"
       # lappend modules ips.$component
       # Find component instantiation labels (label : component_name ...)
-      foreach {cm label} [regexp -inline -all -nocase [format {(\w+)[ \t\r\n]*:[ \t\r\n]*%s} $component] $txt] {
-        # puts "Found component instantiation: $label / $component"
-        lappend modules $label:ips.$component
+      foreach {cm label} [regexp -inline -all -nocase [format {(?:^|[\n\r])(?!\s*--).*?(\w+)[ \t\r\n]*:[ \t\r\n]*%s} $component] $txt] {
+      # puts "Found component instantiation: $label / $component"
+      lappend modules $label:ips.$component
       }
     }
   }
@@ -83,7 +83,7 @@ proc parse_hdl {f toplib} {
 }
 
 # Recursive procedure to print hierarchical module dependencies
-proc print_hierarchy {topfile topdeps toppath alldeps allmods repo_path output_file {label ""} {indent 0} {last 0} } {
+proc print_hierarchy {topfile topdeps toppath alldeps allmods repo_path output_file {label ""} {indent 0} {last 0} {prev_line ""}} {
     # We use a variable to track whether each ancestor level was the last node
     variable last_flags
     if {![info exists last_flags]} {
@@ -92,11 +92,15 @@ proc print_hierarchy {topfile topdeps toppath alldeps allmods repo_path output_f
 
     # Build indentation string
     set indent_str ""
-    for {set i 0} {$i < [llength $last_flags]} {incr i} {
+    for {set i 0} {$i < [llength $last_flags] - 1 } {incr i} {
         if {[lindex $last_flags $i]} {
-            append indent_str "     "   ;# previous level was last → no vertical bar
+          append indent_str "     "   ;# previous level was last → no vertical bar
         } else {
-            append indent_str "│    "
+          if {[string index $prev_line [string length $indent_str]] == "|" || [string index $prev_line [string length $indent_str]] == "├"} {
+            append indent_str "|     "
+          } else {
+            append indent_str "      "
+          }
         }
     }
 
@@ -144,7 +148,7 @@ proc print_hierarchy {topfile topdeps toppath alldeps allmods repo_path output_f
         set file_deps [DictGet $alldeps $f]
         set file_path [DictGet $allmods $f]
         print_hierarchy $f $file_deps $file_path $alldeps $allmods $repo_path $output_file\
-            $label [expr {$indent + 1}] [expr {$i == $num_deps}]
+            $label [expr {$indent + 1}] [expr {$i == $num_deps}] "${indent_str}${connector}"
     }
 
     # Pop this level’s flag before returning
