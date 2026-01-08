@@ -18,9 +18,7 @@
 # Launch Xilinx Vivado or ISE implementation and possibly write bitstream in text mode
 
 # Developers Tip for new commands
-# Add a Dollar sign $ at the end of the command regex (e.g. \^C(REATE)?$) if the command requires a project name as an argument
-# Add a hashtag sign # after the curly braket, if the command is a highlight command that will be shown with the short HELP (e.g. \^C(REATE)?$ {# ...})
-
+# Add a hashtag sign # after the curly brake (e.g. \^C(REATE)?$ {# ...}) if the command requires a project name as an argument
 
 set default_commands {
 
@@ -166,7 +164,7 @@ set default_commands {
   # OPTIONS: verbose
   }
 
-  \^HIE(RARCHY)?$ {
+  \^HIE(RARCHY)?$ {#
     set do_hierarchy 1
   # NAME: HIERARCHY or HIE
   # DESCRIPTION: Print the design hierarchy for the chosen project.
