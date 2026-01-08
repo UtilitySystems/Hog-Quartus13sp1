@@ -34,6 +34,8 @@ proc parse_hdl {f toplib} {
 
   # ------------ VHDL ------------
   if { $ext eq ".vhd" || $ext eq ".vhdl" } {
+    set txt [regsub -all -line {^--.*$} $txt ""]
+
     # Find entities
     foreach {full name} [regexp -inline -all -nocase {entity[ \t\r\n]+(\w+)[ \t\r\n]+is} $txt] {
       # puts "Found entity: $name"
@@ -65,6 +67,9 @@ proc parse_hdl {f toplib} {
 
   # ---- Verilog ---------
   if {[IsVerilog $f]} {
+    # Remove comments from Verilog
+    set txt [regsub -all {^//.*$} $txt ""]
+
     foreach {full name} [regexp -all -inline -line {^(?!\s*//)\s*module\s+(\w+)} $txt] {
       set module_name $name
     }
