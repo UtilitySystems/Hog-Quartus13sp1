@@ -212,7 +212,7 @@ set parameters {
   {dst_dir.arg  "" "For reports, IPbus XMLs, set the destination folder (default is in the ./bin folder)."}
   {output.arg   "" "For hierarchy, set the output file (default is console)."}
   {verbose         "If set, launch the script in verbose mode"}
-  {light}         "If set, print a light version of the hierarchy (without paths)."}
+  {light         "If set, print a light version of the hierarchy (without paths)."}
 }
 
 set tcl_path [file normalize "[file dirname [info script]]"]
