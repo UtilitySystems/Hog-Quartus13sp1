@@ -91,6 +91,7 @@ proc parse_hdl {f toplib} {
 # Recursive procedure to print hierarchical module dependencies
 proc print_hierarchy {topfile topdeps toppath alldeps allmods repo_path output_file {label ""} {indent 0} {last 0} {prev_line ""}} {
     # We use a variable to track whether each ancestor level was the last node
+    #puts $prev_line
     variable last_flags
     if {![info exists last_flags]} {
         set last_flags {}
@@ -99,15 +100,18 @@ proc print_hierarchy {topfile topdeps toppath alldeps allmods repo_path output_f
     # Build indentation string
     set indent_str ""
     for {set i 0} {$i < [llength $last_flags] - 1 } {incr i} {
-        if {[lindex $last_flags $i]} {
-          append indent_str "     "   ;# previous level was last → no vertical bar
-        } else {
+        #if {[lindex $last_flags $i]} {
+        #  append indent_str "     "   ;# previous level was last → no vertical bar
+        #} else {
+          #puts "[string length $indent_str]"
           if {[string index $prev_line [string length $indent_str]] == "|" || [string index $prev_line [string length $indent_str]] == "├"} {
             append indent_str "|     "
           } else {
             append indent_str "      "
           }
-        }
+	 # puts "[string length $indent_str]"
+	  #puts [string index $prev_line [string length $indent_str]]
+        #}
     }
 
     # Choose connector symbols
