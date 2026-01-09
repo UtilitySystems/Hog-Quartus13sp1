@@ -211,9 +211,8 @@ set parameters {
   {generate        "For IPbus XMLs, it will re create the VHDL address decode files."}
   {dst_dir.arg  "" "For reports, IPbus XMLs, set the destination folder (default is in the ./bin folder)."}
   {output.arg   "" "For tree hierarchy mode, set the output file (default is console)."}
-  {print_file   "" "For tree hierarchy mode, print the file name and path as well as module name."}
   {verbose         "If set, launch the script in verbose mode"}
-  {light         "If set, print a light version of the hierarchy (without paths)."}
+  {light         "For tree hierarchy mode, print a light version of the hierarchy (without file paths)."}
 }
 
 set tcl_path [file normalize "[file dirname [info script]]"]
@@ -256,7 +255,7 @@ if {$options(output) != ""} {
   set output_path $options(output)
 }
 
-set print_filename $options(print_file)
+set $light_hierarchy $options(light)
 
 ######## DEFAULTS #########
 set do_rtl 0
@@ -438,7 +437,7 @@ if {$cmd == -1} {
     lassign [GetHogFiles -ext_path $ext_path \
         -list_files ".src,.ext" $proj_list_dir $repo_path]\
         listLibraries listProperties listSrcSets
-    Hierarchy $listProperties $listLibraries $repo_path $output_path $print_filename
+    Hierarchy $listProperties $listLibraries $repo_path $output_path $light_hierarchy
     exit 0
   }
   if {$do_sigasi == 1} {
