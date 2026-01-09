@@ -396,7 +396,9 @@ if {$cmd == -1} {
       set xml_gen 0
     }
 
-
+    if {$options(dst_dir) != ""} {
+      set dst_dir $options(dst_dir)
+    }
     set xml_dst "$dst_dir/xml"
 
 
