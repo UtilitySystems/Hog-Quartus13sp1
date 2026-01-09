@@ -67,7 +67,7 @@ test_launch_commands:
     - ./Hog/Do VIEW example2022.2 -verbose
     - ./Hog/Do TREE example2022.2
     - ./Hog/Do TREE example2022.2 -verbose
-    - ./Hog/Do TREE example2022.2 -print_file    
+    - ./Hog/Do TREE example2022.2 -light
     - ./Hog/Do TREE example2022.2 -output hierarchy.txt
     - ./Hog/Do SIGASI example2022.2
     - ./Hog/Do SIGASI example2022.2 -verbose
