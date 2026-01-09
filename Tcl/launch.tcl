@@ -255,7 +255,7 @@ if {$options(output) != ""} {
   set output_path $options(output)
 }
 
-set $light_hierarchy $options(light)
+set light_hierarchy $options(light)
 
 ######## DEFAULTS #########
 set do_rtl 0
