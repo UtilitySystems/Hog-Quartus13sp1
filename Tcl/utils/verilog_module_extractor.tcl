@@ -5,6 +5,10 @@ proc isAlphanumeric {char} {
   return [regexp {^[a-zA-Z0-9_]$} $char]
 }
 
+proc isWhitespace {char} {
+  return [regexp {^\s$} $char]
+}
+
 proc is_verilog_keyword {token} {
   set protected_verilog_keywords {
   always and assign automatic begin buf bufif0 bufif1 case casex
@@ -88,7 +92,7 @@ proc tokenize_verilog {file_data} {
         }
         lappend tokens $token
 
-    } elseif {$char == "\(" || $char == "\)" || $char == "\{" || $char == "\}" || $char == "\[" || $char == "\]" || $char == ";" || $char == ","} {
+    } elseif {![isWhitespace $char]} {
       lappend tokens $char
       incr i
     } else {
@@ -163,25 +167,27 @@ proc parse_verilog_module {tokens} {
         incr i
       } else {
         # check for module instantiation: <module_name> <instance_name> ( ... );
-        if {$i + 2 < $length && ![is_verilog_keyword [lindex $tokens $i]] && ![is_verilog_keyword [lindex $tokens [expr {$i + 1}]]] && [lindex $tokens [expr {$i + 2}]] == "("} {
-          set submodule_name [lindex $tokens $i]
-          set instance_name [lindex $tokens [expr {$i + 1}]]
-          #puts "Found submodule instantiation: module=$submodule_name instance=$instance_name"
+        # or: <module_name> #(...) <instance_name> ( ... );
+        if {$i + 2 < $length && ![is_verilog_keyword [lindex $tokens $i]]} {
+          #puts "Checking for submodule instantiation at token: \{$token\}, next tokens: \{[lindex $tokens [expr {$i + 1}]]\}, \{[lindex $tokens [expr {$i + 2}]]\}"
 
-          #append to current module's submodule list
-          lappend submodules $submodule_name
-
-          # skip until ;
-          while {$i < $length && [lindex $tokens $i] != ";"} {
-            incr i
+          if {([lindex $tokens [expr {$i + 1}]] == "#" && [lindex $tokens [expr {$i + 2}]] == "(")
+          || (![is_verilog_keyword [lindex $tokens [expr {$i + 1}]]] && [lindex $tokens [expr {$i + 2}]] == "(")} {
+            set submodule_name [lindex $tokens $i]
+            #puts "Found submodule instantiation: module=$submodule_name"
+            #append to current module's submodule list
+            lappend submodules $submodule_name
+            # skip until ;
+            while {$i < $length && [lindex $tokens $i] != ";"} {
+              incr i
+            }
           }
         }
-
         incr i
       }
     } else {
-      # Not in a module, skip
-      incr i
+    # Not in a module, skip
+    incr i
     }
   }
 
