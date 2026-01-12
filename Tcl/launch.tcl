@@ -212,6 +212,7 @@ set parameters {
   {dst_dir.arg  "" "For reports, IPbus XMLs, set the destination folder (default is in the ./bin folder)."}
   {output.arg   "" "For tree hierarchy mode, set the output file (default is console)."}
   {top.arg      "" "For tree hierarchy mode, set the top module (default is the top module defined in hog.conf)."}
+  {ignore.arg   "" "For tree hierarchy mode, filter's the printed hierarchy to exclude modules that match the given string."}
   {verbose         "If set, launch the script in verbose mode"}
   {light         "For tree hierarchy mode, print a light version of the hierarchy (without file paths)."}
 }
@@ -257,6 +258,8 @@ if {$options(output) != ""} {
 }
 
 set light_hierarchy $options(light)
+set ignored_hierarchy $options(ignore)
+set top_module $options(top)
 
 ######## DEFAULTS #########
 set do_rtl 0
@@ -438,7 +441,7 @@ if {$cmd == -1} {
     lassign [GetHogFiles -ext_path $ext_path \
         -list_files ".src,.ext" $proj_list_dir $repo_path]\
         listLibraries listProperties listSrcSets
-    Hierarchy $listProperties $listLibraries $repo_path $output_path $light_hierarchy $options(top)
+    Hierarchy $listProperties $listLibraries $repo_path $output_path $light_hierarchy $top_module $ignored_hierarchy
     exit 0
   }
   if {$do_sigasi == 1} {

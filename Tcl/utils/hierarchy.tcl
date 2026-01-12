@@ -48,6 +48,15 @@ proc is_known_library {hier_meta_ref lib_name} {
   return [dict exists $hier_meta libraries known_libs $lib_name]
 }
 
+proc is_ignored_module {module_key ignore_patterns} {
+  foreach pattern $ignore_patterns {
+    if {[string match $pattern $module_key]} {
+      return 1
+    }
+  }
+  return 0
+}
+
 proc _create_proj_file_info {file_path library properties} {
   set file_info [dict create]
   dict set file_info file_path $file_path
@@ -404,11 +413,23 @@ proc _debug_print_hier_meta {hier_meta_ref {indent 0}} {
 
 
 
-proc Hierarchy {listProperties listLibraries repo_path {output_path ""} {light ""} {top_module_override ""}} {
+proc Hierarchy {listProperties listLibraries repo_path {output_path ""} {light ""} {top_module_override ""} {ignore_opt_list ""}} {
   set hier_meta [_create_hier_meta]
 
   set top_module ""
-  
+
+  set ignore_list [list]
+  foreach pat [split $ignore_opt_list ","] {
+    set pat [string trim $pat]
+    if {$pat ne ""} {
+      if {![regexp {^[\w*]+\.[\w*]+\.[\w*]+$} $pat]} {
+        puts "Warning: ignore pattern '$pat' does not match expected format <lib>.<type>.<name> (wildcards * allowed), ignoring"
+      } else {
+        lappend ignore_list $pat
+      }
+    }
+  }
+
   # If user specified top module, use that
   if {$top_module_override ne ""} {
     set top_module $top_module_override
@@ -464,18 +485,15 @@ proc Hierarchy {listProperties listLibraries repo_path {output_path ""} {light "
   #}
   #puts "[_debug_print_hier_meta hier_meta]"
 
-
-  print_hierarchy hier_meta $top_module $output_path $light
-
-
-
-
-
   if {$output_path != ""} {
     set output_file [open $repo_path/$output_path "w"]
   } else {
     set output_file ""
   }
+
+
+  print_hierarchy hier_meta $top_module $output_file $ignore_list $light
+
 
 #  print_hierarchy $topmodule $topdeps $toppath $deps $mods $repo_path $output_file
 
@@ -484,8 +502,13 @@ proc Hierarchy {listProperties listLibraries repo_path {output_path ""} {light "
   }
 }
 
-proc print_hierarchy {hier_meta_ref top_module {output_file ""} {light 0} {indent 0} {stack_ref ""} {last_properties_ref ""} {is_last 1}} {
+proc print_hierarchy {hier_meta_ref module {output_file ""} {ignore_list ""} {light 0} {indent 0} {stack_ref ""} {last_properties_ref ""} {is_last 1}} {
   upvar 1 $hier_meta_ref hier_meta
+  
+  # Check if this module should be ignored
+  if {[is_ignored_module $module $ignore_list]} {
+    return
+  }
   
   # Initialize stack and last_properties on first call
   if {$stack_ref eq ""} {
@@ -497,15 +520,15 @@ proc print_hierarchy {hier_meta_ref top_module {output_file ""} {light 0} {inden
   }
   
   # Check if module exists
-  if {![dict exists $hier_meta all_modules $top_module]} {
-    set parts [split $top_module "."]
+  if {![dict exists $hier_meta all_modules $module]} {
+    set parts [split $module "."]
     set lib [lindex $parts 0]
     set type [lindex $parts 1]
     set name [lindex $parts 2]
     set file_path ""
     set module_exists 0
   } else {
-    set mod [dict get $hier_meta all_modules $top_module]
+    set mod [dict get $hier_meta all_modules $module]
     set name [dict get $mod name]
     set type [dict get $mod type]
     set lib [dict get $mod library]
@@ -515,12 +538,12 @@ proc print_hierarchy {hier_meta_ref top_module {output_file ""} {light 0} {inden
   
   # Check if we have a circular dependency
   set is_circular 0
-  if {[lsearch -exact $stack $top_module] != -1} {
+  if {[lsearch -exact $stack $module] != -1} {
     set is_circular 1
   }
   
   if {!$is_circular} {
-    lappend stack $top_module
+    lappend stack $module
   }
   
   # Build indent string
@@ -585,7 +608,7 @@ proc print_hierarchy {hier_meta_ref top_module {output_file ""} {light 0} {inden
     
     # Update last_properties for this child
     lappend last_properties $is_last
-    print_hierarchy hier_meta $sub $output_file $light [expr {$indent + 1}] stack last_properties $is_last_child
+    print_hierarchy hier_meta $sub $output_file $ignore_list $light [expr {$indent + 1}] stack last_properties $is_last_child
     set last_properties [lrange $last_properties 0 end-1]
   }
   
