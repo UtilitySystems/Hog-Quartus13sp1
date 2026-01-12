@@ -35,6 +35,8 @@
 #  }
 
 
+source $tcl_path/utils/verilog_module_extractor.tcl
+
 proc _create_hier_meta {} {
   set hier_meta [dict create]
   dict set hier_meta all_modules {}
@@ -239,27 +241,22 @@ proc _hier_parse_verilog {hier_meta_ref file_info} {
     dict set mod_properties filetype "Verilog"
   }
 
-  set fh [open $f r]
-  set txt [read $fh]
-  close $fh
+  set submodules [extract_verilog_module_info $f]
 
-  # Find module declarations
-  foreach {full name} [regexp -all -inline -line {^(?!\s*//)\s*module\s+(\w+)} $txt] {
+  dict for {module sm_list} $submodules {
+    set known_subs [list]
     set unknown_subs [list]
 
-    # Find module instantiations
-    set inst_pattern {^\s*(\w+)\s*(?:#\s*\([^;]*\))?\s+(\w+)\s*\(}
-    foreach {full mod_type inst_name} [regexp -all -inline -line $inst_pattern $txt] {
-      # Filter out Verilog/SystemVerilog keywords
-      set keywords {if for while begin end module endmodule input output inout wire reg logic parameter localparam function task case casex casez generate initial always always_comb always_ff always_latch}
-      if {[lsearch -exact $keywords [string tolower $mod_type]] == -1 && [lsearch -exact $keywords [string tolower $inst_name]] == -1} {
-        lappend unknown_subs "unknown.component.${mod_type}"
-      }
+    foreach sm $sm_list {
+      # not sure if we can extract library info from verilog instantiations?
+      lappend unknown_subs "unknown.component.${sm}"
     }
 
     set unknown_subs [lsort -unique $unknown_subs]
-    _store_module hier_meta $name $library component $f {} $unknown_subs $mod_properties
+    _store_module hier_meta $module $library component $f $known_subs $unknown_subs $mod_properties
   }
+
+
 }
 
 proc _hier_parse_ip {hier_meta_ref file_info} {
