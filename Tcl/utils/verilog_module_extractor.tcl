@@ -169,7 +169,8 @@ proc parse_verilog_module {tokens} {
         # check for module instantiation: <module_name> <instance_name> ( ... );
         # or: <module_name> #(...) <instance_name> ( ... );
         if {$i + 2 < $length && ![is_verilog_keyword [lindex $tokens $i]]} {
-          #puts "Checking for submodule instantiation at token: \{$token\}, next tokens: \{[lindex $tokens [expr {$i + 1}]]\}, \{[lindex $tokens [expr {$i + 2}]]\}"
+          #puts "Checking for submodule instantiation at token: \{$token\}, next tokens:
+          # \{[lindex $tokens [expr {$i + 1}]]\}, \{[lindex $tokens [expr {$i + 2}]]\}"
 
           if {([lindex $tokens [expr {$i + 1}]] == "#" && [lindex $tokens [expr {$i + 2}]] == "(")
           || (![is_verilog_keyword [lindex $tokens [expr {$i + 1}]]] && [lindex $tokens [expr {$i + 2}]] == "(")} {
