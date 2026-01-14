@@ -5,25 +5,25 @@ proc isAlphanumeric {char} {
 }
 
 proc is_vhdl_keyword {token} {
-  set protected_vhdl_keywords { 
-    abs access after alias all and architecture array assert attribute 
-    begin block body buffer bus 
-    case component configuration constant 
-    disconnect downto 
-    else elsif end entity exit 
-    file for function 
-    generate generic group guarded 
-    if impure in inertial inout is 
-    label library linkage literal loop 
-    map mod nand new next nor not null 
-    of on open or others out 
-    package port postponed procedure process pure 
-    range record register reject rem report return rol ror 
-    select severity signal shared sla sll sra srl subtype 
-    then to transport type 
-    unaffected units until use 
-    variable 
-    wait when while with 
+  set protected_vhdl_keywords {
+    abs access after alias all and architecture array assert attribute
+    begin block body buffer bus
+    case component configuration constant
+    disconnect downto
+    else elsif end entity exit
+    file for function
+    generate generic group guarded
+    if impure in inertial inout is
+    label library linkage literal loop
+    map mod nand new next nor not null
+    of on open or others out
+    package port postponed procedure process pure
+    range record register reject rem report return rol ror
+    select severity signal shared sla sll sra srl subtype
+    then to transport type
+    unaffected units until use
+    variable
+    wait when while with
     xnor
   }
 
@@ -141,7 +141,7 @@ proc parse_vhdl_module {library file_path tokens} {
   set last_entity ""
   set prev_inc_packages {}
 
-  
+
   while {$i < $length} {
     set token [lindex $tokens $i]
     # puts "Processing token: \{$token\}"
@@ -175,11 +175,11 @@ proc parse_vhdl_module {library file_path tokens} {
           set package_name [lindex $tokens [expr {$i + 1}]]
           set package_key "$library.package.$package_name"
           # puts "Found package: $package_key"
-          
+
           # Store package with inc_packages as sub_modules
           set pkg_data [_create_vhdl_module $package_name $library $file_path $inc_packages "package"]
           dict set packages $package_key $pkg_data
-          
+
           set last_entity $package_name
           set prev_inc_packages $inc_packages
           set inc_packages {}
@@ -201,7 +201,7 @@ proc parse_vhdl_module {library file_path tokens} {
             } else {
               set body_sub_modules $inc_packages
             }
-            
+
 
             set body_data [_create_vhdl_module $package_body_name $library $file_path $body_sub_modules "package_body"]
 
@@ -212,14 +212,14 @@ proc parse_vhdl_module {library file_path tokens} {
                 if {[lindex $tokens $i] == "end" && [lindex $tokens [expr {$i + 1}]] == ";"} {
                   break;
                 }
-              } 
+              }
               if {$i + 2 < $length} {
                 if {[lindex $tokens $i] == "end" \
                 && ![is_vhdl_keyword [lindex $tokens [expr {$i + 1}]]] \
                 && [lindex $tokens [expr {$i + 2}]] == ";"} {
                   break;
                 }
-              } 
+              }
               incr i
             }
           }
@@ -232,11 +232,11 @@ proc parse_vhdl_module {library file_path tokens} {
           set entity_name [lindex $tokens [expr {$i + 1}]]
           set entity_key "$library.component.$entity_name"
           # puts "Found entity: $entity_key"
-          
+
           # Store entity with inc_packages as sub_modules
           set entity_data [_create_vhdl_module $entity_name $library $file_path $inc_packages "entity"]
           dict set entities $entity_key $entity_data
-          
+
           set last_entity $entity_name
           set prev_inc_packages $inc_packages
           set inc_packages {}
@@ -254,7 +254,7 @@ proc parse_vhdl_module {library file_path tokens} {
           set entity_name [lindex $tokens [expr {$i + 3}]]
           set arch_name [lindex $tokens [expr {$i + 1}]]
           set arch_key "${library}.arch.${entity_name}.${arch_name}"
-          
+
           # puts "Found architecture: $arch_name for entity: $entity_name (key: $arch_key)"
 
           set arch_sub_modules {}
@@ -266,10 +266,10 @@ proc parse_vhdl_module {library file_path tokens} {
           } else {
             set arch_sub_modules $inc_packages
           }
-          
+
           set known_lib_modules {}
           set unknown_lib_modules {}
-          
+
           # check for component declarations in the architecture heading
           while {$i < $length && [lindex $tokens $i] != "begin"} {
             incr i
@@ -282,7 +282,7 @@ proc parse_vhdl_module {library file_path tokens} {
               || (![is_vhdl_keyword [lindex $tokens [expr {$i + 1}]]]  && [lindex $tokens [expr {$i + 2}]] == "port")} {
                 set component_name [lindex $tokens [expr {$i + 1}]]
                 # puts "Found component: $component_name in architecture $arch_key"
-                
+
                 lappend unknown_lib_modules "unknown.component.$component_name"
                 incr i 2
               }
@@ -305,7 +305,7 @@ proc parse_vhdl_module {library file_path tokens} {
 
               if {$i + 1 < $length && [lindex $tokens [expr {$i + 1}]] == "entity"} {
                 # puts "Found entity instantiation, parsing entity name starting at token: \{[lindex $tokens [expr {$i + 1}]]\}"
-                incr i 2 
+                incr i 2
                 set entity_inst ""
                 while {$i < $length} {
                   # puts "Processing token in entity instantiation: \{[lindex $tokens $i]\}"
@@ -327,7 +327,7 @@ proc parse_vhdl_module {library file_path tokens} {
             }
             incr i
           }
-          
+
           # Combine packages and sub_modules
           set all_modules [concat $arch_sub_modules $known_lib_modules $unknown_lib_modules]
           set arch_data [_create_vhdl_module [lindex [split $arch_key "."] 2] $library $file_path $all_modules "architecture"]
@@ -373,7 +373,7 @@ proc parse_vhdl_module {library file_path tokens} {
       dict set entities $entity_key sub_modules $all_modules
     }
   }
-  
+
   return [dict create packages $packages packages_bodies $filtered_packages_bodies entities $entities architectures $filtered_architectures]
 }
 
