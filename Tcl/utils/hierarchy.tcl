@@ -527,7 +527,8 @@ proc print_compile_order {hier_meta_ref sorted_list {output_file ""}} {
   }
 }
 
-proc print_hierarchy {hier_meta_ref module {output_file ""} {ignore_list ""} {bad_nodes ""} {light 0} {indent 0} {stack_ref ""} {last_properties_ref ""} {is_last 1}} {
+proc print_hierarchy {hier_meta_ref module {output_file ""} {ignore_list ""} \
+{bad_nodes ""} {light 0} {indent 0} {stack_ref ""} {last_properties_ref ""} {is_last 1}} {
   upvar 1 $hier_meta_ref hier_meta
 
   # Check if this module should be ignored
