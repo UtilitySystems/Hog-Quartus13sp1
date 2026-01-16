@@ -65,6 +65,7 @@ proc tokenize_verilog {file_data} {
           incr i
           }
         } else {
+          incr i
           puts "Warning: Unrecognized comment start at position $i: /$next_char"
         }
         #puts "Finished skipping comment \[$token\], current position is $i"
