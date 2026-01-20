@@ -186,7 +186,7 @@ proc _hier_parse_ip {hier_meta_ref file_info} {
 
   set output_dir "."
   if {[catch {open $f r} fid]} {
-    puts "Warning: Could not open XCI file: $f"
+    Msg Warning "Warning: Could not open XCI file: $f"
   } else {
     set content [read $fid]
     close $fid
@@ -555,7 +555,7 @@ proc Hierarchy {listProperties listLibraries repo_path {output_path ""} {compile
   set bad_nodes [dict get $sorted_modules bad_nodes]
 
 
-  puts "[_debug_string_hier_meta hier_meta]"
+  #Msg Debug "[_debug_string_hier_meta hier_meta]"
   if {$compile_order} {
     print_compile_order hier_meta [dict get $sorted_modules sorted] $output_file
   } else {
