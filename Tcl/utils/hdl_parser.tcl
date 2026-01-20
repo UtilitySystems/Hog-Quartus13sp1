@@ -10,43 +10,66 @@ proc tokenize {code token_patterns keywords {case_sensitive 1}} {
   set line_start 0
   set cursor 0
 
+  set keyword_dict [dict create]
+  foreach kw $keywords {
+    dict set keyword_dict $kw 1
+  }
+
   set code_len [string length $code]
   while {$cursor < $code_len} {
     set found_match 0
-    set remaining_code [string range $code $cursor end]
 
-    foreach item $token_patterns {
-      set type [lindex $item 0]
-      set pattern [lindex $item 1]
 
-      set re [string cat {^(} $pattern {)}]
+    # this is an attempt at "optimizing" the regex matching by only checking a window of the code
+    # we double the window size if no match is found and try again
+    set window_size 200
+    while {!$found_match && $cursor < $code_len} {
+      set window_end [expr {min($cursor + $window_size - 1, $code_len - 1)}]
+      set window [string range $code $cursor $window_end]
 
-      if {[regexp -- $re $remaining_code allmatch submatch]} {
-        set value $submatch
-        set match_len [string length $allmatch]
+      foreach item $token_patterns {
+        set type [lindex $item 0]
+        set pattern [lindex $item 1]
 
-        set column [expr {$cursor - $line_start + 1}]
+        set re [string cat {^(} $pattern {)}]
 
-        if {$type == "NEWLINE"} {
-          incr line
-          set line_start [expr {$cursor + $match_len}]
-        } elseif {$type != "WHITESPACE" && $type != "COMMENT"} {
+        if {[regexp -- $re $window allmatch submatch]} {
+          set value $submatch
+          set match_len [string length $allmatch]
 
-          if {!$case_sensitive} {
-            set value [string tolower $value]
+          set column [expr {$cursor - $line_start + 1}]
+
+          if {$type == "NEWLINE"} {
+            incr line
+            set line_start [expr {$cursor + $match_len}]
+          } elseif {$type != "WHITESPACE" && $type != "COMMENT"} {
+
+            if {!$case_sensitive} {
+              set value [string tolower $value]
+            }
+
+            if {$type == "IDENTIFIER" && [dict exists $keyword_dict $value]} {
+              set type "KEYWORD"
+            }
+            lappend tokens [dict create type $type value $value line $line column $column]
           }
 
-          if {$type == "IDENTIFIER" && [lsearch -exact $keywords $value] != -1} {
-            set type "KEYWORD"
-          }
-          lappend tokens [dict create type $type value $value line $line column $column]
+          set cursor [expr {$cursor + $match_len}]
+          set found_match 1
+          break
         }
+      }
 
-        set cursor [expr {$cursor + $match_len}]
-        set found_match 1
+      if {!$found_match && $window_end >= $code_len - 1} {
         break
       }
+
+      if {!$found_match} {
+        set window_size [expr {$window_size * 2}]
+        Msg Warning "No match found at index $cursor, increasing window size to $window_size"
+      }
     }
+
     if {!$found_match} {
       puts stderr "Error: Tokenizer stuck at index $cursor on char '[string index $code $cursor]'"
       incr cursor
@@ -57,7 +80,7 @@ proc tokenize {code token_patterns keywords {case_sensitive 1}} {
 }
 
 
-# hdl_node 
+# hdl_node
 #   type: "vhdl_entity", "vhdl_architecture", "verilog_module", etc.
 #   name: module name
 #   file_path: path to the source file
@@ -72,7 +95,7 @@ proc tokenize {code token_patterns keywords {case_sensitive 1}} {
 #   components_declared: [
 #      component_node dict {
 #         name: component name
-#         line: line number 
+#         line: line number
 #       }
 #   ]
 #   instantiations: [
@@ -119,7 +142,7 @@ proc hdl_node_string {hdl_node} {
             }
         }
     }
-    
+
     if {[dict get $hdl_node type] eq "vhdl_architecture"} {
         append node_info "\n  Components Declared:"
         set components_declared [dict get $hdl_node components_declared]
@@ -262,15 +285,16 @@ proc find_verilog_constructs {tokens filename} {
               set token [lindex $tokens $i]
               if {[token_type $token] == "LPAREN" } {
                 incr depth
-              } 
+              }
 
               if {[token_type $token] == "RPAREN" } {
                 incr depth -1
-                incr i
                 if {$depth == 0} {
+                  incr i
                   break
                 }
-              } 
+              }
+              incr i
             }
 
             set token [lindex $tokens $i]
@@ -287,18 +311,18 @@ proc find_verilog_constructs {tokens filename} {
 }
 
 
-########## VHDL ########## 
+########## VHDL ##########
 
 set vhdl_keywords {
-  abs access after alias all and architecture array assert attribute 
-  begin block body buffer bus case component configuration constant 
-  disconnect downto else elsif end entity exit file for function 
-  generate generic group guarded if impure in inertial inout is 
-  label library linkage literal loop map mod nand new next nor not 
-  null of on open or others out package port postponed procedure 
-  process pure range record register reject rem report return rol 
-  ror select severity signal shared sla sll sra srl subtype then 
-  to transport type unaffected units until use variable wait when 
+  abs access after alias all and architecture array assert attribute
+  begin block body buffer bus case component configuration constant
+  disconnect downto else elsif end entity exit file for function
+  generate generic group guarded if impure in inertial inout is
+  label library linkage literal loop map mod nand new next nor not
+  null of on open or others out package port postponed procedure
+  process pure range record register reject rem report return rol
+  ror select severity signal shared sla sll sra srl subtype then
+  to transport type unaffected units until use variable wait when
   while with xnor xor
 }
 
@@ -559,7 +583,7 @@ proc find_vhdl_constructs {tokens filename} {
           set package_name [token_value $next_token]
           set package_line [token_line $next_token]
           set i [expr {$i + 2}]
-          
+
           if {$i < [llength $tokens]} {
               set current_tok [lindex $tokens $i]
               set current_val [token_value $current_tok]
@@ -628,6 +652,15 @@ proc parse_hdl_file {filename} {
   set code [read $fp]
   close $fp
 
+
+  # skip protected files
+  set first_line [lindex [split $code "\n"] 0]
+  set first_line_trimmed [string trim $first_line]
+  if {$first_line_trimmed eq "`pragma protect begin_protected" ||
+      $first_line_trimmed eq "`protect begin_protected"} {
+    return {}
+  }
+
   set extension [string tolower [file extension $filename]]
 
   set tokens {}
@@ -637,15 +670,26 @@ proc parse_hdl_file {filename} {
     ".v" -
     ".vh" -
     ".sv" {
-      set tokens [tokenize_verilog $code]
-      set constructs [find_verilog_constructs $tokens $filename]
+      set t_tokenize [time {set tokens [tokenize_verilog $code]} 1]
+      set t_constructs [time {set constructs [find_verilog_constructs $tokens $filename]} 1]
     }
     ".vhd" -
     ".vhdl" {
-      set tokens [tokenize_vhdl $code]
-      set constructs [find_vhdl_constructs $tokens $filename]
+      set t_tokenize [time {set tokens [tokenize_vhdl $code]} 1]
+      set t_constructs [time {set constructs [find_vhdl_constructs $tokens $filename]} 1]
+    }
+    default {
+      return {}
     }
   }
+
+  # Extract microseconds and convert to milliseconds
+  set tokenize_us [lindex $t_tokenize 0]
+  set constructs_us [lindex $t_constructs 0]
+  set tokenize_ms [expr {$tokenize_us / 1000.0}]
+  set constructs_ms [expr {$constructs_us / 1000.0}]
+
+  #puts "\[PERFORMACE\] Tokenization: $tokenize_ms ms, Construct discovery: $constructs_ms ms for file $filename"
 
   return $constructs
 }
