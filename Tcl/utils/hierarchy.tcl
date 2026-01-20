@@ -7,7 +7,7 @@
 #        library {}
 #        type {}
 #        file_path {}
-#        sub_modules {}  # list of module_keys
+#        references {}  # list of module_keys
 #        properties {}
 #      }
 #    }
@@ -23,8 +23,7 @@
 #  }
 
 
-source $tcl_path/utils/verilog_module_extractor.tcl
-source $tcl_path/utils/vhdl_module_extractor.tcl
+source $tcl_path/utils/hdl_parser.tcl
 
 proc _create_hier_meta {} {
   set hier_meta [dict create]
@@ -56,23 +55,12 @@ proc _create_proj_file_info {file_path library properties} {
   return $file_info
 }
 
-proc file_info_path {file_info} {
-  return [dict get $file_info file_path]
-}
+proc file_info_path {file_info} {return [dict get $file_info file_path] }
+proc file_info_library {file_info} { return [dict get $file_info library] }
+proc file_info_properties {file_info} { return [dict get $file_info properties] }
+proc file_info_ext {file_info} { return [dict get $file_info ext] }
 
-proc file_info_library {file_info} {
-  return [dict get $file_info library]
-}
-
-proc file_info_properties {file_info} {
-  return [dict get $file_info properties]
-}
-
-proc file_info_ext {file_info} {
-  return [dict get $file_info ext]
-}
-
-proc _store_module {hier_meta_ref mod_name mod_library mod_type file_path sub_modules_list props} {
+proc _store_module {hier_meta_ref mod_name mod_library mod_type file_path references_list props} {
   upvar 1 $hier_meta_ref hier_meta
 
   set key "${mod_library}.${mod_type}.${mod_name}"
@@ -81,109 +69,93 @@ proc _store_module {hier_meta_ref mod_name mod_library mod_type file_path sub_mo
   dict set mod library $mod_library
   dict set mod type $mod_type
   dict set mod file_path $file_path
-  dict set mod sub_modules $sub_modules_list
+  dict set mod references $references_list
   dict set mod properties $props
   dict set mod color "white"
 
   dict set hier_meta all_modules $key $mod
 }
 
-proc _hier_parse_vhdl {hier_meta_ref file_info} {
+proc _hier_parse_hdl {hier_meta_ref file_info} {
   upvar 1 $hier_meta_ref hier_meta
 
   set f [file_info_path $file_info]
-  #puts "Parsing VHDL file: $f"
-
   if {![file exists $f]} { return }
 
   set library [file_info_library $file_info]
   set file_properties [file_info_properties $file_info]
-
-  # Determine VHDL year from file properties
-  set knownYears {87 93 2008 2019}
-  set year 2008
-  foreach y $knownYears {
-    if {[lsearch -exact $file_properties $y] != -1} {
-      set year $y
-      break
-    }
-  }
-
-  # Build module properties dict with filetype
-  set mod_properties [dict create]
-  dict set mod_properties filetype "VHDL$year"
-
-
-  set extracted_vhdl_info [extract_vhdl_module_info $f $library]
-  # Add all extracted VHDL modules to all_modules
-  dict for {package_name package_data} [dict get $extracted_vhdl_info packages] {
-    dict set package_data properties $mod_properties
-    dict set hier_meta all_modules $package_name $package_data
-  }
-
-  dict for {package_body_name package_body_data} [dict get $extracted_vhdl_info packages_bodies] {
-    dict set package_body_data properties $mod_properties
-    dict set hier_meta all_modules $package_body_name $package_body_data
-  }
-
-  dict for {entity_name entity_data} [dict get $extracted_vhdl_info entities] {
-    dict set entity_data properties $mod_properties
-    dict set hier_meta all_modules $entity_name $entity_data
-  }
-
-  dict for {arch_name arch_data} [dict get $extracted_vhdl_info architectures] {
-    dict set arch_data properties $mod_properties
-    dict set hier_meta all_modules $arch_name $arch_data
-  }
-
-}
-
-proc _hier_parse_verilog {hier_meta_ref file_info} {
-  upvar 1 $hier_meta_ref hier_meta
-
-  set f [file_info_path $file_info]
-  #puts "Parsing Verilog file: $f"
-
-  if {![file exists $f]} { return }
-
-  set library [file_info_library $file_info]
-  set file_properties [file_info_properties $file_info]
-
   set ext [string tolower [file extension $f]]
-  set is_sv 0
-  if {$ext eq ".sv" || [lsearch -exact $file_properties "SystemVerilog"] != -1} {
-    set is_sv 1
-  }
 
-  # Build module properties dict with filetype
-  set mod_properties [dict create]
-  if {$is_sv} {
-    dict set mod_properties filetype "SystemVerilog"
-  } else {
-    dict set mod_properties filetype "Verilog"
-  }
+  Msg Debug "Parsing $f"
+  set hdl_constructs [parse_hdl_file $f]
+  foreach node $hdl_constructs {
+    Msg Debug "[hdl_node_string $node]"
+    set node_type [dict get $node type]
+    set node_name [dict get $node name]
 
-  set submodules [extract_verilog_module_info $f]
-
-  dict for {module sm_list} $submodules {
-    set all_subs [list]
-    foreach sm $sm_list {
-      # not sure if we can extract library info from verilog instantiations?
-      lappend all_subs "unknown.component.${sm}"
+    set references [list]
+    foreach component [dict get $node components_declared] {
+      lappend references "unknown.component.[dict get $component name]"
     }
 
-    set all_subs [lsort -unique $all_subs]
-    _store_module hier_meta $module $library component $f $all_subs $mod_properties
+    foreach inst [dict get $node instantiations] {
+      if { [dict get $inst type] == "component_inst"} {
+        lappend references "unknown.component.[dict get $inst mod_name]"
+      } elseif { [dict get $inst type] == "entity_inst"} {
+        set split_name [split [dict get $inst mod_name] "."]
+        lappend references "[lindex $split_name 0].component.[lindex $split_name 1]"
+      }
+    }
+
+    foreach lib [dict get $node libraries ] {
+      foreach use [dict get $lib uses] {
+        set split_name [split $use "."]
+        lappend references "[lindex $split_name 0].vhdl_package.[lindex $split_name 1]"
+      }
+    }
+
+    set references [lsort -unique $references]
+    dict set node references $references
+
+    set mod_properties [dict create]
+    if {$ext eq ".v" || $ext eq ".sv" || [lsearch -exact $file_properties "SystemVerilog"] != -1} {
+        if {$ext eq ".sv" || [lsearch -exact $file_properties "SystemVerilog"] != -1} {
+            dict set mod_properties filetype "SystemVerilog"
+        } else {
+            dict set mod_properties filetype "Verilog"
+        }
+    } elseif {$ext eq ".vhd" || $ext eq ".vhdl"} {
+        set knownYears {93 2008 2019}
+        set year 2008
+        foreach y $knownYears {
+            if {[lsearch -exact $file_properties $y] != -1} {
+                set year $y
+                break
+            }
+        }
+        dict set mod_properties filetype "VHDL$year"
+    }
+
+    dict set node properties $mod_properties
+    dict set node library $library
+    dict set node color "white"
+
+    if {$node_type == "vhdl_architecture"} {
+      set key "${library}.${node_type}.[dict get $node entity].${node_name}"
+    } else {
+      set key "${library}.${node_type}.${node_name}"
+    }
+
+    dict set hier_meta all_modules $key $node
+
   }
-
-
 }
 
 proc _hier_parse_ip {hier_meta_ref file_info} {
   upvar 1 $hier_meta_ref hier_meta
 
   set f [file_info_path $file_info]
-  #puts "Parsing IP file: $f"
+  Msg Debug "Parsing IP file: $f"
 
   if {![file exists $f]} { return }
 
@@ -205,16 +177,15 @@ proc _hier_parse_ip {hier_meta_ref file_info} {
 proc _hier_parse_file {hier_meta_ref file_info} {
   upvar 1 $hier_meta_ref hier_meta
 
-  if {[file_info_ext $file_info] eq ".vhd"} {
-    _hier_parse_vhdl hier_meta $file_info
-  } elseif {[file_info_ext $file_info] eq ".v"} {
-    _hier_parse_verilog hier_meta $file_info
-  } elseif {[file_info_ext $file_info] eq ".xci"} {
+  set ext [string tolower [file_info_ext $file_info]]
+  if {$ext eq ".vhd" || $ext eq ".vhdl" || $ext eq ".v" || $ext eq ".sv"} {
+    _hier_parse_hdl hier_meta $file_info
+  } elseif {$ext eq ".xci"} {
     _hier_parse_ip hier_meta $file_info
-  } elseif {[file_info_ext $file_info] eq ".bd"} {
+  } elseif {$ext eq ".bd"} {
     _hier_parse_bd hier_meta $file_info
   } else {
-    puts "Warning: unrecognized file type for [file_info_path $file_info]"
+    Msg Warning "Warning: unrecognized file type for [file_info_path $file_info]"
   }
 
 
@@ -225,31 +196,30 @@ proc _hier_submodule_append {hier_meta_ref parent_key sub_key} {
 
   if {[dict exists $hier_meta all_modules $parent_key]} {
     set mod [dict get $hier_meta all_modules $parent_key]
-    dict lappend mod sub_modules $sub_key
+    dict lappend mod references $sub_key
     dict set hier_meta all_modules $parent_key $mod
   }
 }
 
 
-# Attempts to match unknown sub module references to known modules
 proc _reference_resolver {hier_meta_ref} {
   upvar 1 $hier_meta_ref hier_meta
 
+  set package_bodies [ dict filter [dict get $hier_meta all_modules] script {k v} {expr {[dict get $v type] eq "vhdl_package_body"}}]
+  set architectures  [ dict filter [dict get $hier_meta all_modules] script {k v} {expr {[dict get $v type] eq "vhdl_architecture"}}]
 
-  dict for {package_body body_info} [dict filter [dict get $hier_meta all_modules] key "*.package_body.*"] {
-    #puts "Resolving references in package body: $package_body"
+  dict for {package_body body_info} $package_bodies {
     set entity_key [split $package_body "."]
-    set entity_key "[lindex $entity_key 0].package.[lindex $entity_key 2]"
+    set entity_key "[lindex $entity_key 0].vhdl_package.[lindex $entity_key 2]"
     if {[dict exists [dict get $hier_meta all_modules] $entity_key]} {
       _hier_submodule_append hier_meta $entity_key $package_body
       continue
     }
   }
 
-  dict for {architecture arch_info} [dict filter [dict get $hier_meta all_modules] key "*.architecture.*"] {
-    #puts "Resolving references in package arch: $architecture"
+  dict for {architecture arch_info} $architectures {
     set entity_key [split $architecture "."]
-    set entity_key "[lindex $entity_key 0].package.[lindex $entity_key 2]"
+    set entity_key "[lindex $entity_key 0].vhdl_entity.[lindex $entity_key 2]"
     if {[dict exists [dict get $hier_meta all_modules] $entity_key]} {
       _hier_submodule_append hier_meta $entity_key $architecture
       continue
@@ -257,70 +227,67 @@ proc _reference_resolver {hier_meta_ref} {
   }
 
 
-  #puts "hier_meta before resolution: $hier_meta"
-
-  set cache_map [dict create]
   set total_resolved 0
   set resolution_list [list]
 
   dict for {mod_key mod} [dict get $hier_meta all_modules] {
-    set sub_modules [dict get $mod sub_modules]
-    set new_sub_modules [list]
+    set references_data [dict get $mod references]
+    set new_references [list]
+    set mod_lib [dict get $mod library]
 
-    #puts "Resolving submodules for $mod_key: $sub_modules"
-    foreach sub_key $sub_modules {
-      set parts [split $sub_key "."]
-      set type [lindex $parts 1]
-      set name [lindex $parts 2]
-      set type_name "$type.$name"
+    foreach ref $references_data {
+      set parts   [split $ref "."]
+      set library [lindex $parts 0]
+      set type    [lindex $parts 1]
+      set name    [lindex $parts 2]
+
 
       set found 0
       set resolved_mod_name ""
 
-      # If mapping exists in cache, use it
-      if {[dict exists $cache_map $sub_key]} {
-        set resolved_mod_name [dict get $cache_map $sub_key]
-        #puts "Resovled $sub_key -> $resolved_mod_name (cached)"
-        lappend new_sub_modules $resolved_mod_name
-        continue
+      if { $library != "unknown" && $type != "component"} {
+        lappend new_references $ref
+        continue;
       }
 
-      foreach mod_name [dict keys [dict get $hier_meta all_modules]] {
-        set mod_name_parts [split $mod_name "."]
-        if {[string match $type_name "[lindex $mod_name_parts 1].[lindex $mod_name_parts 2]"]} {
-          set resolved_mod_name $mod_name
-          incr found 1
-        }
-      }
-
-      if {$found == 0} {
-        # Keep as unknown
-        #puts "$mod_key: Unresolved mod: $sub_key"
-        lappend new_sub_modules $sub_key
-      } elseif {$found > 1} {
-        puts "Warning: multiple matches found for $sub_key (type.name: $type_name). Keeping as unknown."
-        # maybe we should see if one is in the same library as parent and use that one?
-
-        lappend new_sub_modules $sub_key
+      set ref_lib ""
+      if { $library != "unknown"} {
+        set ref_lib $library
       } else {
-        # Resolved successfully
-        #puts "Resolved $sub_key -> $resolved_mod_name"
-        lappend new_sub_modules $resolved_mod_name
-        dict set cache_map $sub_key $resolved_mod_name
-        lappend resolution_list [dict create from $sub_key to $resolved_mod_name in_module $mod_key]
-        incr total_resolved
+        set ref_lib $mod_lib
+      }
+
+
+      set pattern "${library}\.\[vhdl_entity|verilog_module\]\.$name\$"
+      set matches [ dict filter [dict get $hier_meta all_modules] script {k v} {expr {[regexp $pattern $k]}}]
+      if {[dict size $matches] == "0"}  {
+        set pattern ".*\.\[vhdl_entity|verilog_module\]\.$name\$"
+        set matches [ dict filter [dict get $hier_meta all_modules] script {k v} {expr {[regexp $pattern $k]}}]
+      }
+
+      if {[dict size $matches] == "0"}  {
+        lappend new_references $ref
+        Msg Debug "No match found"
+      } else {
+        dict for {k v} $matches {
+          lappend new_references $k
+          Msg Debug "Mod: $mod_key resolved $ref to $k"
+          incr total_resolved
+          break
+        }
       }
     }
 
-    # Update module with resolved submodules
-    dict set hier_meta all_modules $mod_key sub_modules $new_sub_modules
+    dict set hier_meta all_modules $mod_key references $new_references
   }
+
 
   return [dict create total $total_resolved resolutions $resolution_list]
 }
 
 proc dfs_sort {hier_meta_ref top_module} {
   upvar 1 $hier_meta_ref hier_meta
+
 
   proc _dfs_visit {hier_meta_ref node sorted_ref bad_nodes_ref} {
     upvar 1 $hier_meta_ref hier_meta
@@ -335,8 +302,7 @@ proc dfs_sort {hier_meta_ref top_module} {
     set color [dict get $mod color]
 
     if {$color eq "gray"} {
-      # cycle detected
-      puts "ERROR: Circular dependency detected at $node"
+      Msg Warning "Warning: Circular dependency detected at $node"
       if {[lsearch -exact $bad_nodes $node] == -1} {
         lappend bad_nodes $node
       }
@@ -347,16 +313,15 @@ proc dfs_sort {hier_meta_ref top_module} {
       return
     }
 
-    # update node
     dict set mod color "gray"
     dict set hier_meta all_modules $node $mod
 
-    set sub_modules [dict get $mod sub_modules]
-    foreach child $sub_modules {
+
+    set references [dict get $mod references]
+    foreach child $references {
       _dfs_visit hier_meta $child sorted bad_nodes
     }
 
-    # done processing children, mark black and add to sorted list
     set mod [dict get $hier_meta all_modules $node]
     dict set mod color "black"
     dict set hier_meta all_modules $node $mod
@@ -377,27 +342,28 @@ proc dfs_sort {hier_meta_ref top_module} {
 }
 
 
-proc _debug_print_hier_meta {hier_meta_ref {indent 0}} {
+proc _debug_string_hier_meta {hier_meta_ref {indent 0}} {
   upvar 1 $hier_meta_ref hier_meta
 
   set ind [string repeat "  " $indent]
+  set s ""
 
-  puts "${ind}=== ALL MODULES ==="
+  set s "${ind}=== ALL MODULES ==="
   dict for {key mod} [dict get $hier_meta all_modules] {
-    puts "${ind}$key:"
+    set s "${s}${ind}$key:"
     dict for {field value} $mod {
-      puts "${ind}  $field: $value"
+      set s "${s}${ind}  $field: $value"
     }
-    puts ""
+    set s "${s}"
   }
 
-  puts "${ind}=== PROJECT FILES ==="
+  set s "${s}${ind}=== PROJECT FILES ==="
   dict for {file finfo} [dict get $hier_meta proj_files] {
-    puts "${ind}$file:"
+    set s "${s}${ind}$file:"
     dict for {field value} $finfo {
-      puts "${ind}  $field: $value"
+      set s "${s}${ind}  $field: $value"
     }
-    puts ""
+    set s "${s}"
   }
 }
 
@@ -413,20 +379,18 @@ proc Hierarchy {listProperties listLibraries repo_path {output_path ""} {compile
     set pat [string trim $pat]
     if {$pat ne ""} {
       if {![regexp {^[\w*]+\.[\w*]+\.[\w*]+$} $pat]} {
-        puts "Warning: ignore pattern '$pat' does not match expected format <lib>.<type>.<name> (wildcards * allowed), ignoring"
+        Msg Warning "Warning: ignore pattern '$pat' does not match expected format <lib>.<type>.<name> (wildcards * allowed), ignoring"
       } else {
         lappend ignore_list $pat
       }
     }
   }
 
-  # If user specified top module, use that
   if {$top_module_override ne ""} {
     set top_module $top_module_override
-    puts "Using specified top module: $top_module"
+    Msg Warning "Using specified top module: $top_module"
   }
 
-  # Populate hier_meta.proj_files with per-file metadata
   dict for {lib files} $listLibraries {
     set lib [file rootname $lib]
 
@@ -435,11 +399,17 @@ proc Hierarchy {listProperties listLibraries repo_path {output_path ""} {compile
       if {[dict exists $listProperties $f]} {
 
         set fprops [dict get $listProperties $f]
-        # Only extract from properties if not already specified
         if {$top_module eq ""} {
           set top [lindex [regexp -inline {\ytop\s*=\s*(.+?)\y.*} $fprops] 1]
           if {$top != ""} {
-            set top_module "${lib}.component.${top}"
+            set ext [file extension $f]
+            if {$ext eq ".vhd" || $ext eq ".vhdl"} {
+              set top_module "${lib}.vhdl_entity.${top}"
+            } elseif { $ext eq ".v" || $ext eq ".sv"} {
+              set top_module "${lib}.verilog_module.${top}"
+            } else {
+              set top_module "${lib}.component.${top}"
+            }
           }
         }
 
@@ -450,30 +420,31 @@ proc Hierarchy {listProperties listLibraries repo_path {output_path ""} {compile
   }
 
   if {$top_module_override eq ""} {
-    puts "Top module from properties: $top_module"
+    Msg Info "Top module from properties: $top_module"
   }
   dict for {file file_info} [dict get $hier_meta proj_files] {
     _hier_parse_file hier_meta $file_info
   }
 
-  puts "Completed initial parsing "
-  #puts "[_debug_print_hier_meta hier_meta]"
+  Msg Info "Completed initial parsing "
 
   set resolve_result [_reference_resolver hier_meta]
   set total [dict get $resolve_result total]
   set resolutions [dict get $resolve_result resolutions]
-  puts "Completed reference resolution: $total references resolved"
+  Msg Info "Completed reference resolution: $total references resolved"
 
 
   if {$output_path != ""} {
     set output_file [open $repo_path/$output_path "w"]
   } else {
     set output_file ""
+    puts ""
   }
 
 
   set sorted_modules [dfs_sort hier_meta $top_module]
   set bad_nodes [dict get $sorted_modules bad_nodes]
+
 
   if {$compile_order} {
     print_compile_order hier_meta [dict get $sorted_modules sorted] $output_file
@@ -516,7 +487,7 @@ proc print_compile_order {hier_meta_ref sorted_list {output_file ""}} {
 
   foreach group $groups {
     set type [lindex $group 0]
-    set files [lindex $group 1]
+    set files [lsort -unique [lindex $group 1]]
     set output_line "$type \{$files\}"
 
     if {$output_file ne ""} {
@@ -531,12 +502,10 @@ proc print_hierarchy {hier_meta_ref module {output_file ""} {ignore_list ""} \
 {bad_nodes ""} {light 0} {indent 0} {stack_ref ""} {last_properties_ref ""} {is_last 1}} {
   upvar 1 $hier_meta_ref hier_meta
 
-  # Check if this module should be ignored
   if {[is_ignored_module $module $ignore_list]} {
     return
   }
 
-  # Initialize stack and last_properties on first call
   if {$stack_ref eq ""} {
     set stack [list]
     set last_properties [list]
@@ -545,7 +514,6 @@ proc print_hierarchy {hier_meta_ref module {output_file ""} {ignore_list ""} \
     upvar 1 $last_properties_ref last_properties
   }
 
-  # Check if module exists
   if {![dict exists $hier_meta all_modules $module]} {
     set parts [split $module "."]
     set lib [lindex $parts 0]
@@ -562,11 +530,8 @@ proc print_hierarchy {hier_meta_ref module {output_file ""} {ignore_list ""} \
     set module_exists 1
   }
 
-  # Check if we have a circular dependency
   set is_circular 0
   if {[lsearch -exact $stack $module] != -1} {
-    # if it's in bad nodes then yeah it actually is a circular dependency,
-    # otherwise it just means parent node probably also references it
     if {[lsearch -exact $bad_nodes $module] != -1} {
       set is_circular 1
     }
@@ -576,7 +541,6 @@ proc print_hierarchy {hier_meta_ref module {output_file ""} {ignore_list ""} \
     lappend stack $module
   }
 
-  # Build indent string
   set indent_str ""
   for {set i 0} {$i < [llength $last_properties]} {incr i} {
       if {[lindex $last_properties $i]} {
@@ -586,7 +550,6 @@ proc print_hierarchy {hier_meta_ref module {output_file ""} {ignore_list ""} \
       }
   }
 
-  # Choose connector symbols
   if {$indent > 0} {
       if {$is_last} {
           set connector "└── "
@@ -597,20 +560,22 @@ proc print_hierarchy {hier_meta_ref module {output_file ""} {ignore_list ""} \
       set connector ""
   }
 
-  # Determine file path display based on light mode
   if {$light} {
     set path_str ""
   } else {
     set path_str " - ${file_path}"
   }
 
-  # Build message based on whether module exists
+  if {$type == "vhdl_architecture"} {
+    set name "[dict get $mod entity].$name"
+  }
+
   if {!$module_exists} {
-    set msg "${indent_str}${connector}${name} (${lib}.${type})"
+    set msg "${indent_str}${connector}${lib}.${name} (${type})"
   } elseif {$is_circular} {
-    set msg "${indent_str}${connector}${name} (${lib}.${type})${path_str} \[WARNING: circular reference detected\]"
+    set msg "${indent_str}${connector}${lib}.${name} (${type})${path_str} \[WARNING: circular reference detected\]"
   } else {
-    set msg "${indent_str}${connector}${name} (${lib}.${type})${path_str}"
+    set msg "${indent_str}${connector}${lib}.${name} (${type})${path_str}"
   }
 
   if {$output_file ne ""} {
@@ -623,24 +588,20 @@ proc print_hierarchy {hier_meta_ref module {output_file ""} {ignore_list ""} \
     return
   }
 
-  # Get submodules
-  set sub_modules [dict get $mod sub_modules]
-  set all_subs [lsort -unique $sub_modules]
+  set references [dict get $mod references]
+  set all_subs [lsort -unique $references]
 
-  # Recursively print submodules
   set num_subs [llength $all_subs]
   set sub_idx 0
   foreach sub $all_subs {
     incr sub_idx
     set is_last_child [expr {$sub_idx == $num_subs}]
 
-    # Update last_properties for this child
     lappend last_properties $is_last
     print_hierarchy hier_meta $sub $output_file $ignore_list $bad_nodes $light [expr {$indent + 1}] stack last_properties $is_last_child
     set last_properties [lrange $last_properties 0 end-1]
   }
 
-  # Pop from stack after processing all children
   set stack [lrange $stack 0 end-1]
 }
 
@@ -649,7 +610,6 @@ proc print_hierarchy {hier_meta_ref module {output_file ""} {ignore_list ""} \
 proc get_rtl_refs {node {name ""}} {
   set out [dict create]
 
-  # If current node represents a named component and has HDL reference_info, record it
   if {$name ne "" && ![catch {dict get $node reference_info} refinfo]} {
     set rt ""; set rn ""
     catch {set rt [dict get $refinfo ref_type]}
@@ -659,7 +619,6 @@ proc get_rtl_refs {node {name ""}} {
     }
   }
 
-  # check 'components' dict
   if {![catch {dict get $node components} comps]} {
     dict for {cname cnode} $comps {
       set childMap [get_rtl_refs $cnode $cname]
@@ -667,7 +626,6 @@ proc get_rtl_refs {node {name ""}} {
     }
   }
 
-  # Also scan other dict-valued children for embedded components
   dict for {k v} $node {
     if {$k eq "components" || $k eq "reference_info"} {continue}
     if {[catch {dict size $v}]} {continue}
@@ -682,14 +640,12 @@ proc _hier_parse_bd {hier_meta_ref file_info} {
   upvar 1 $hier_meta_ref hier_meta
 
   set f [file_info_path $file_info]
-  #puts "Parsing block design file: $f"
 
   if {![file exists $f]} { return }
 
   set library [file_info_library $file_info]
   set file_properties [file_info_properties $file_info]
 
-  # Module name is the filename without extension
   set name [file rootname [file tail $f]]
   set mod_properties [dict create]
   dict set mod_properties filetype "BD"
@@ -699,7 +655,6 @@ proc _hier_parse_bd {hier_meta_ref file_info} {
   close $bd_file
   set bd_design $bd_json
 
-  # Realllly hacky way to convert the bd json into a tcl dict
   set lines [split $bd_design "\n"]
   set filtered_lines {}
   foreach line $lines {
@@ -719,25 +674,13 @@ proc _hier_parse_bd {hier_meta_ref file_info} {
 
   set bd_design [string range $bd_design 1 end-1]
 
-
-
-
-
-  # Validate dict
   if {[catch {dict size $bd_design} err]} {
-    puts "Warning: malformed bd_design in $f, skipping"
-    puts $err
+    Msg Warning "Warning: malformed bd_design in $f, skipping"
     return {}
   }
 
   set bd_design [lindex $bd_design 1]
 
-  #puts "Modules found in $f:"
-  #dict for {m v} [get_rtl_refs $bd_design] {
-  #  puts "$m -> $v"
-  #}
-
-  #let's extract only unique values from get_rtl_refs
   set unknown_modules {}
   dict for {m v} [get_rtl_refs $bd_design] {
     if {[lsearch -exact $unknown_modules $v] == -1} {
