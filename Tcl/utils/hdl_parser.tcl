@@ -108,7 +108,8 @@ proc tokenize {code token_patterns keywords {case_sensitive 1}} {
 #    ]
 
 proc create_hdl_node {type name file_path line {libraries ""} {components_declared ""} {instantiations ""} {entity ""}} {
-  return [dict create type $type name $name file_path $file_path line $line libraries $libraries components_declared $components_declared instantiations $instantiations entity $entity]
+  return [dict create type $type name $name file_path $file_path line $line \
+  libraries $libraries components_declared $components_declared instantiations $instantiations entity $entity]
 }
 
 proc create_instantiation_node {mod_name type inst_name line} {
@@ -125,7 +126,8 @@ proc hdl_node_string {hdl_node} {
     append node_info "\n  Entity: [dict get $hdl_node entity]"
   }
 
-  if {[dict get $hdl_node type] eq "vhdl_entity" || [dict get $hdl_node type] eq "vhdl_package" || [dict get $hdl_node type] eq "vhdl_architecture" || [dict get $hdl_node type] eq "vhdl_package_body"} {
+  if {[dict get $hdl_node type] eq "vhdl_entity" || [dict get $hdl_node type] eq "vhdl_package" \
+  || [dict get $hdl_node type] eq "vhdl_architecture" || [dict get $hdl_node type] eq "vhdl_package_body"} {
     append node_info "\n  Libraries:"
     set libraries [dict get $hdl_node libraries]
     if {[llength $libraries] == 0} {
@@ -159,6 +161,7 @@ proc hdl_node_string {hdl_node} {
           append node_info " (None)"
         } else {
           foreach inst $instantiations {
+            # tclint-disable-next-line line-length
             append node_info "\n    - Name: [dict get $inst mod_name], Instance: [dict get $inst inst_name] type: [dict get $inst type] (line [dict get $inst line])"
           }
         }
@@ -170,6 +173,7 @@ proc hdl_node_string {hdl_node} {
       append node_info " (None)"
     } else {
       foreach inst $instantiations {
+        # tclint-disable-next-line line-length
         append node_info "\n    - Name: [dict get $inst mod_name], Instance: [dict get $inst inst_name] type: [dict get $inst type] (line [dict get $inst line])"
       }
     }
@@ -618,7 +622,8 @@ proc find_vhdl_constructs {tokens filename} {
         set entity_name_tok [lindex $tokens [expr {$i + 3}]]
         set is_tok [lindex $tokens [expr {$i + 4}]]
 
-        if {[token_type $arch_name_tok] == "IDENTIFIER" && [token_value $of_tok] == "of" && [token_type $entity_name_tok] == "IDENTIFIER" && [token_value $is_tok] == "is"} {
+        if {[token_type $arch_name_tok] == "IDENTIFIER" && [token_value $of_tok] == "of" \
+        && [token_type $entity_name_tok] == "IDENTIFIER" && [token_value $is_tok] == "is"} {
           set arch_name [token_value $arch_name_tok]
           set entity_name [token_value $entity_name_tok]
 

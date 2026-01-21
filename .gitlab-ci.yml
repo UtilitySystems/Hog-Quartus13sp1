@@ -46,40 +46,48 @@ test_launch_commands:
     HOG_PATH: "/opt/Xilinx/Vivado/2022.2/bin:/afs/cern.ch/work/l/l0mdtel/questa/2019.4/questasim/linux_x86_64:/opt/cactus/bin/uhal/tools/:/opt/intelFPGA/19.1/quartus/bin:/opt/intelFPGA/19.1/nios2eds/bin:/opt/intelFPGA/19.1/quartus/sopc_builder/bin:/opt/Xilinx/14.7/ISE_DS/PlanAhead/bin:/home/microchip/Libero_SoC_v2022.2/Libero/bin"
   script:
     - export PATH=$HOG_PATH:$PATH
-    - git clone --recursive https://hog_user:${HOG_PUSH_TOKEN}@gitlab.com/hog-cern/test/TestFirmware.git
-    - cd TestFirmware/Hog
+    - git clone --recursive https://hog_user:${HOG_PUSH_TOKEN}@gitlab.com/hog-cern/hog-examples.git
+    - cd hog-examples/Hog
     - git checkout $CI_COMMIT_SHA
     - cd ..
     - ./Hog/Do LIST
     - ./Hog/Do LIST -all
     - ./Hog/Do HELP
     - ./Hog/Do BUTTONS
-    - ./Hog/Do CREATE example2022.2
-    - ./Hog/Do RTL example2022.2
-    - ./Hog/Do CHECKSYNTAX example2022.2
-    - ./Hog/Do CHECKSYNTAX example2022.2 -verbose
-    - ./Hog/Do CHECKSYNTAX example2022.2 -recreate
-    - ./Hog/Do CHECKLIST example2022.2
-    - ./Hog/Do CHECKLIST example2022.2 -verbose
+    - ./Hog/Do CREATE vivado/fifo
+    - ./Hog/Do RTL vivado/fifo
+    - ./Hog/Do CHECKSYNTAX vivado/fifo
+    - ./Hog/Do CHECKSYNTAX vivado/fifo -verbose
+    - ./Hog/Do CHECKSYNTAX vivado/fifo -recreate
+    - ./Hog/Do CHECKLIST vivado/fifo
+    - ./Hog/Do CHECKLIST vivado/fifo -verbose
     - ./Hog/Do CHECKYAML
     - ./Hog/Do CHECKYAML -verbose
-    - ./Hog/Do VIEW example2022.2
-    - ./Hog/Do VIEW example2022.2 -verbose
-    - ./Hog/Do TREE example2022.2
-    - ./Hog/Do TREE example2022.2 -verbose
-    - ./Hog/Do TREE example2022.2 -light
-    - ./Hog/Do TREE example2022.2 -output hierarchy.txt
-    - ./Hog/Do SIGASI example2022.2
-    - ./Hog/Do SIGASI example2022.2 -verbose
-    - ./Hog/Do XML example2022.2
-    - ./Hog/Do XML example2022.2 -generate
-    - ./Hog/Do XML example2022.2 -verbose
-    - ./Hog/Do XML example2022.2 -dst_dir ./xml_output
+    - ./Hog/Do VIEW vivado/fifo
+    - ./Hog/Do VIEW vivado/fifo -verbose
+    - ./Hog/Do TREE vivado/fifo
+    - ./Hog/Do TREE vivado/fifo -verbose
+    - ./Hog/Do TREE vivado/fifo -light
+    - ./Hog/Do TREE vivado/fifo -output fifo_hierarchy.txt
+    # OPTIONS: ext_path.arg, output.arg, light, compile_order, ignore.arg, include_ieee, include_gen_prods, top.arg, verbose
+    - ./Hog/Do TREE vivado/fifo -compile_order
+    - ./Hog/Do TREE vivado/fifo -include_ieee
+    - ./Hog/Do TREE vivado/fifo -include_gen_prods
+    - ./Hog/Do TREE vivado/abacus -output abacus_hierarchy.txt
+    - ./Hog/Do TREE vivado/bd_design -output bd_hierarchy.txt
+    - ./Hog/Do SIGASI vivado/fifo
+    - ./Hog/Do SIGASI vivado/fifo -verbose
+    - ./Hog/Do XML vivado/fifo
+    - ./Hog/Do XML vivado/fifo -generate
+    - ./Hog/Do XML vivado/fifo -verbose
+    - ./Hog/Do XML vivado/fifo -dst_dir ./xml_output
   artifacts:
     paths:
-      - TestFirmware/hierarchy.txt
-      - TestFirmware/xml_output/
-      - TestFirmware/Top/example_vivado_vitis_zynqmp/*.csv
+      - hog-examples/fifo_hierarchy.txt
+      - hog-examples/abacus_hierarchy.txt
+      - hog-examples/bd_hierarachy.txt
+      - hog-examples/xml_output/
+      - hog-examples/Top/example_vivado_vitis_zynqmp/*.csv
     expire_in: 1 week
   interruptible: true
   allow_failure: false
