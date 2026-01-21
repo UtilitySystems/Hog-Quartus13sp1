@@ -30,8 +30,8 @@ proc tokenize {code token_patterns keywords {case_sensitive 1}} {
       foreach item $token_patterns {
         set type [lindex $item 0]
         set pattern [lindex $item 1]
-
-        set re [string cat {^(} $pattern {)}]
+        # set re [string cat {^(} $pattern {)}]
+        set re "^($pattern)"
 
         if {[regexp -- $re $window allmatch submatch]} {
           set value $submatch

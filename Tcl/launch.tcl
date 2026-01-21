@@ -168,7 +168,7 @@ set default_commands {
     set do_hierarchy 1
   # NAME: TREE or T
   # DESCRIPTION: Print the design hierarchy for the chosen project.
-  # OPTIONS: ext_path.arg, output.arg, light, compile_order, ignore.arg, top.arg, verbose
+  # OPTIONS: ext_path.arg, output.arg, light, compile_order, ignore.arg, include_ieee, include_gen_prods, top.arg, verbose
   }
 
   default {
@@ -213,6 +213,8 @@ set parameters {
   {output.arg   "" "For tree hierarchy mode, set the output file (default is console)."}
   {top.arg      "" "For tree hierarchy mode, set the top module (default is the top module defined in hog.conf)."}
   {ignore.arg   "" "For tree hierarchy mode, filter's the printed hierarchy to exclude modules that match the given string."}
+  {include_ieee "" "For tree hierarchy mode, include IEEE/STD libraries in the printed hierarchy. (Default 0)"}
+  {include_gen_prods "" "For tree hierarchy mode, include IP generated products in the printed hierarchy. (Default 0)"}
   {compile_order "" "For tree hierarchy mode, prints compile order instead of hierarchy."}
   {verbose         "If set, launch the script in verbose mode"}
   {light         "For tree hierarchy mode, print a light version of the hierarchy (without file paths)."}
@@ -238,8 +240,19 @@ lassign [InitLauncher $::argv0 $tcl_path $parameters $default_commands $argv $cu
 directive project project_name group_name repo_path old_path bin_dir top_path usage short_usage cmd ide list_of_options
 
 array set options $list_of_options
-Msg Debug "Returned by InitLauncher: \
-$project $project_name $group_name $repo_path $old_path $bin_dir $top_path $cmd"
+
+if {$options(verbose) == 1} {
+  setDebugMode 1
+}
+Msg Debug "Returned by InitLauncher: \n\
+  - project: $project \n\
+  - project_name $project_name \n\
+  - group_name $group_name \n\
+  - repo_path $repo_path \n\
+  - old_path $old_path \n\
+  - bin_dir $bin_dir \n\
+  - top_path $top_path \n\
+  - cmd $cmd"
 
 set ext_path ""
 if {$options(ext_path) != ""} {
@@ -248,9 +261,7 @@ if {$options(ext_path) != ""} {
 set simlib_path ""
 
 
-if {$options(verbose) == 1} {
-  setDebugMode 1
-}
+
 # printDebugMode
 # Msg Info "Number of jobs set to $options(njobs)."
 set output_path ""
@@ -262,6 +273,8 @@ set light_hierarchy $options(light)
 set ignored_hierarchy $options(ignore)
 set top_module $options(top)
 set compile_order $options(compile_order)
+set include_ieee $options(include_ieee)
+set include_gen_prods $options(include_gen_prods)
 
 ######## DEFAULTS #########
 set do_rtl 0
@@ -443,7 +456,7 @@ if {$cmd == -1} {
     lassign [GetHogFiles -ext_path $ext_path \
         -list_files ".src,.ext" $proj_list_dir $repo_path]\
         listLibraries listProperties listSrcSets
-    Hierarchy $listProperties $listLibraries $repo_path $output_path $compile_order $light_hierarchy $top_module $ignored_hierarchy
+    Hierarchy $listProperties $listLibraries $repo_path $output_path $compile_order $light_hierarchy $top_module $ignored_hierarchy $include_ieee $include_gen_prods
     exit 0
   }
   if {$do_sigasi == 1} {

@@ -25,6 +25,14 @@
 
 source $tcl_path/utils/hdl_parser.tcl
 
+proc PrintOrWrite {output_file msg} {
+  if {$output_file ne ""} {
+    puts $output_file $msg
+  } else {
+    puts $msg
+  }
+}
+
 proc _create_hier_meta {} {
   set hier_meta [dict create]
   dict set hier_meta all_modules {}
@@ -97,6 +105,16 @@ proc _store_module {hier_meta_ref mod_name mod_library mod_type file_path refere
 proc _hier_parse_hdl {hier_meta_ref file_info} {
   upvar 1 $hier_meta_ref hier_meta
 
+  set top_control 0
+  if {[string first "top_control" $file_info] != -1} {
+    set top_control 1
+  }
+
+  set top_l0mdt 0
+  if {[string first "top_l0mdt" $file_info] != -1} {
+    set top_l0mdt 1
+  }
+
   #Msg Info "Parsing HDL file: [file_info_path $file_info]"
   set f [file_info_path $file_info]
   if {![file exists $f]} { return }
@@ -111,6 +129,10 @@ proc _hier_parse_hdl {hier_meta_ref file_info} {
   set hdl_constructs [parse_hdl_file $f]
   foreach node $hdl_constructs {
     Msg Debug "[hdl_node_string $node]"
+    # if {$top_control == 1 || $top_l0mdt == 1} {
+    #   puts "Node: "
+    #   puts "$node"
+    # }
     set node_type [dict get $node type]
     set node_name [dict get $node name]
 
@@ -173,7 +195,7 @@ proc _hier_parse_hdl {hier_meta_ref file_info} {
   return $discovered_modules
 }
 
-proc _hier_parse_ip {hier_meta_ref file_info} {
+proc _hier_parse_ip {hier_meta_ref file_info {include_gen_prods 0}} {
   upvar 1 $hier_meta_ref hier_meta
 
   set f [file_info_path $file_info]
@@ -203,27 +225,29 @@ proc _hier_parse_ip {hier_meta_ref file_info} {
   set hdl_files [list]
   set dirs_to_scan [list [list $resolved_output_dir 0]]
 
-  while {[llength $dirs_to_scan] > 0} {
-    set current [lindex $dirs_to_scan 0]
-    set dirs_to_scan [lrange $dirs_to_scan 1 end]
-    set current_dir [lindex $current 0]
-    set current_depth [lindex $current 1]
+  if { $include_gen_prods == 1} {
+    while {[llength $dirs_to_scan] > 0} {
+      set current [lindex $dirs_to_scan 0]
+      set dirs_to_scan [lrange $dirs_to_scan 1 end]
+      set current_dir [lindex $current 0]
+      set current_depth [lindex $current 1]
 
-    if {$current_depth >= 5} { continue }
-    if {![file isdirectory $current_dir]} { continue }
+      if {$current_depth >= 5} { continue }
+      if {![file isdirectory $current_dir]} { continue }
 
-    set entries [glob -nocomplain -directory $current_dir *]
-    foreach entry $entries {
-      if {[file isfile $entry]} {
-        set ext [string tolower [file extension $entry]]
-        if {$ext eq ".vhd" || $ext eq ".v" || $ext eq ".sv"} {
-          lappend hdl_files $entry
-        }
-      } elseif {[file isdirectory $entry]} {
-        set dir_name [file tail $entry]
-        # Skip hdl and synth directories
-        if {$dir_name ne "synth"} {
-          lappend dirs_to_scan [list $entry [expr {$current_depth + 1}]]
+      set entries [glob -nocomplain -directory $current_dir *]
+      foreach entry $entries {
+        if {[file isfile $entry]} {
+          set ext [string tolower [file extension $entry]]
+          if {$ext eq ".vhd" || $ext eq ".v" || $ext eq ".sv"} {
+            lappend hdl_files $entry
+          }
+        } elseif {[file isdirectory $entry]} {
+          set dir_name [file tail $entry]
+          # Skip hdl and synth directories
+          if {$dir_name ne "synth"} {
+            lappend dirs_to_scan [list $entry [expr {$current_depth + 1}]]
+          }
         }
       }
     }
@@ -274,14 +298,14 @@ proc _hier_parse_ip {hier_meta_ref file_info} {
 }
 
 
-proc _hier_parse_file {hier_meta_ref file_info} {
+proc _hier_parse_file {hier_meta_ref file_info {include_gen_prods 0}} {
   upvar 1 $hier_meta_ref hier_meta
 
   set ext [string tolower [file_info_ext $file_info]]
   if {$ext eq ".vhd" || $ext eq ".vhdl" || $ext eq ".v" || $ext eq ".sv"} {
     _hier_parse_hdl hier_meta $file_info
   } elseif {$ext eq ".xci"} {
-    _hier_parse_ip hier_meta $file_info
+    _hier_parse_ip hier_meta $file_info $include_gen_prods
   } elseif {$ext eq ".bd"} {
     _hier_parse_bd hier_meta $file_info
   } else {
@@ -318,6 +342,16 @@ proc _reference_resolver {hier_meta_ref} {
   }
 
   dict for {architecture arch_info} $architectures {
+    # if {[string first "top_l0mdt" $architecture] != -1} {
+    #   puts $architecture
+    #   puts $arch_info
+    #   # exit 0
+    # }
+    # if {[string first "top_control" $architecture] != -1} {
+    #   puts $architecture
+    #   puts $arch_info
+    #   # exit 0
+    # }
     set entity_key [split $architecture "."]
     set entity_key "[lindex $entity_key 0].vhdl_entity.[lindex $entity_key 2]"
     if {[dict exists [dict get $hier_meta all_modules] $entity_key]} {
@@ -334,8 +368,13 @@ proc _reference_resolver {hier_meta_ref} {
     set references_data [dict get $mod references]
     set new_references [list]
     set mod_lib [dict get $mod library]
+    set top_control 0
+    if { [string first "top_control" $mod_key] != -1 } {
+      set top_control 1
+    }
 
     foreach ref $references_data {
+      # puts "Processing ref: $ref in mod: $mod_key"
       set parts   [split $ref "."]
       set library [lindex $parts 0]
       set type    [lindex $parts 1]
@@ -345,7 +384,8 @@ proc _reference_resolver {hier_meta_ref} {
       set found 0
       set resolved_mod_name ""
 
-      if { ($library != "unknown" && $library != "work") || ($library == "unknown" && $type != "component") } {
+      if { ($library != "unknown" && $library != "work" && $type != "component") || ($library == "unknown" && $type != "component") } {
+        # puts "Keeping reference as-is: $ref"
         lappend new_references $ref
         continue;
       }
@@ -368,10 +408,12 @@ proc _reference_resolver {hier_meta_ref} {
       if {[dict size $matches] == "0"}  {
         lappend new_references $ref
         Msg Debug "No match found"
+        # puts "Debug: No match found for ref: $ref in mod: $mod_key"
       } else {
         dict for {k v} $matches {
           lappend new_references $k
           Msg Debug "Mod: $mod_key resolved $ref to $k"
+          # puts "Debug: Mod: $mod_key resolved $ref to $k"
           incr total_resolved
           break
         }
@@ -468,12 +510,19 @@ proc _debug_string_hier_meta {hier_meta_ref {indent 0}} {
 
 
 
-proc Hierarchy {listProperties listLibraries repo_path {output_path ""} {compile_order 0} {light ""} {top_module_override ""} {ignore_opt_list ""}} {
+proc Hierarchy {listProperties listLibraries repo_path {output_path ""} \
+{compile_order 0} {light ""} {top_module_override ""} {ignore_opt_list ""} {include_ieee 0} {include_gen_prods 0}} {
   set hier_meta [_create_hier_meta]
 
   set top_module ""
 
   set ignore_list [list]
+
+  if {$include_ieee == 0} {
+    lappend ignore_list "ieee.*.*"
+    lappend ignore_list "std.*.*"
+  }
+
   foreach pat [split $ignore_opt_list ","] {
     set pat [string trim $pat]
     if {$pat ne ""} {
@@ -554,12 +603,22 @@ proc Hierarchy {listProperties listLibraries repo_path {output_path ""} {compile
   set sorted_modules [dfs_sort hier_meta $top_module]
   set bad_nodes [dict get $sorted_modules bad_nodes]
 
-
   #Msg Debug "[_debug_string_hier_meta hier_meta]"
+  set p [dict create]
   if {$compile_order} {
     print_compile_order hier_meta [dict get $sorted_modules sorted] $output_file
   } else {
-    print_hierarchy hier_meta $top_module $output_file $ignore_list $bad_nodes $light
+    set p [print_hierarchy hier_meta $top_module $output_file $ignore_list $bad_nodes $light]
+    PrintOrWrite $output_file "\n\n=====Packages in project:====="
+    dict for {lib pkg_list} $p {
+      if {[llength $pkg_list] == 0} {
+        continue
+      }
+      PrintOrWrite $output_file "Library: $lib"
+      foreach pkg_entry $pkg_list {
+        PrintOrWrite $output_file "  Package: $pkg_entry"
+      }
+    }
   }
 
   if {$output_path != ""} {
@@ -599,18 +658,15 @@ proc print_compile_order {hier_meta_ref sorted_list {output_file ""}} {
     set type [lindex $group 0]
     set files [lsort -unique [lindex $group 1]]
     set output_line "$type \{$files\}"
-
-    if {$output_file ne ""} {
-      puts $output_file $output_line
-    } else {
-      puts $output_line
-    }
+    PrintOrWrite $output_file $output_line
   }
 }
 
 proc print_hierarchy {hier_meta_ref module {output_file ""} {ignore_list ""} \
 {bad_nodes ""} {light 0} {indent 0} {stack_ref ""} {last_properties_ref ""} {is_last 1}} {
   upvar 1 $hier_meta_ref hier_meta
+
+  set package_dict {}
 
   if {[is_ignored_module $module $ignore_list]} {
     return
@@ -633,7 +689,9 @@ proc print_hierarchy {hier_meta_ref module {output_file ""} {ignore_list ""} \
     set file_path ""
     set module_exists 0
   } else {
+
     set mod [dict get $hier_meta all_modules $module]
+    # puts $mod
     set name [dict get $mod name]
     set type [dict get $mod type]
     set lib [dict get $mod library]
@@ -656,8 +714,9 @@ proc print_hierarchy {hier_meta_ref module {output_file ""} {ignore_list ""} \
           set arch_mod [dict get $hier_meta all_modules $arch_key]
           set arch_file_path [dict get $arch_mod file_path]
           if {$arch_file_path eq $file_path} {
-            print_hierarchy hier_meta $arch_key $output_file $ignore_list $bad_nodes $light $indent stack last_properties $is_last
-            return
+            set p [print_hierarchy hier_meta $arch_key $output_file $ignore_list $bad_nodes $light $indent stack last_properties $is_last]
+            set package_dict [MergeDict $p $package_dict]
+            return $package_dict
           }
         }
       }
@@ -677,11 +736,11 @@ proc print_hierarchy {hier_meta_ref module {output_file ""} {ignore_list ""} \
 
   set indent_str ""
   for {set i 0} {$i < [llength $last_properties]} {incr i} {
-      if {[lindex $last_properties $i]} {
-          append indent_str "  "
-      } else {
-          append indent_str "│ "
-      }
+    if {[lindex $last_properties $i]} {
+      append indent_str "  "
+    } else {
+      append indent_str "│ "
+    }
   }
 
   if {$indent > 0} {
@@ -704,22 +763,31 @@ proc print_hierarchy {hier_meta_ref module {output_file ""} {ignore_list ""} \
     set name "[dict get $mod entity].$name"
   }
 
-  if {!$module_exists} {
-    set msg "${indent_str}${connector}${lib}.${name} (${type})"
-  } elseif {$is_circular} {
-    set msg "${indent_str}${connector}${lib}.${name} (${type})${path_str} \[WARNING: circular reference detected\]"
+
+  if {[string first "vhdl_package" $type] == -1} {
+    if {!$module_exists} {
+      set msg "${indent_str}${connector}${lib}.${name} (${type})"
+    } elseif {$is_circular} {
+      set msg "${indent_str}${connector}${lib}.${name} (${type})${path_str} \[WARNING: circular reference detected\]"
+    } else {
+      set msg "${indent_str}${connector}${lib}.${name} (${type})${path_str}"
+    }
   } else {
-    set msg "${indent_str}${connector}${lib}.${name} (${type})${path_str}"
+    if {[DictGet $package_dict "$lib"] == ""} {
+      dict set package_dict "$lib" [list]
+    }
+    set package_list [DictGet $package_dict "$lib"]
+    if {![IsInList $package_list "${name} ${path_str}"] } {
+      lappend package_list "${name} ${path_str}"
+      dict set package_dict "$lib" $package_list
+    }
+    return $package_dict
   }
 
-  if {$output_file ne ""} {
-    puts $output_file $msg
-  } else {
-    puts $msg
-  }
+  PrintOrWrite $output_file $msg
 
   if {$is_circular || !$module_exists} {
-    return
+    return $package_dict
   }
 
   set references [dict get $mod references]
@@ -740,11 +808,13 @@ proc print_hierarchy {hier_meta_ref module {output_file ""} {ignore_list ""} \
     set is_last_child [expr {$sub_idx == $num_subs}]
 
     lappend last_properties $is_last
-    print_hierarchy hier_meta $sub $output_file $ignore_list $bad_nodes $light [expr {$indent + 1}] stack last_properties $is_last_child
+    set p [print_hierarchy hier_meta $sub $output_file $ignore_list $bad_nodes $light [expr {$indent + 1}] stack last_properties $is_last_child]
+    set package_dict [MergeDict $p $package_dict]
     set last_properties [lrange $last_properties 0 end-1]
   }
 
   set stack [lrange $stack 0 end-1]
+  return $package_dict
 }
 
 
