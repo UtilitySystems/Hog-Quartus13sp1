@@ -509,6 +509,7 @@ function Hog_exit_fwe () {
 
 }
 
+
 ## @function Log_capture()
   #
   # @brief creates output files and pipelines stdout and stderr to
@@ -517,14 +518,34 @@ function Hog_exit_fwe () {
 function Log_capture(){
 
   Msg Debug "Logger args : $*"
-  $* > >(log_stdout "stdout") 2> >(log_stdout "stderr" >&2) &
-  # $* > >(test1 "stdout") 2> >(test2 "stderr") &
+  exec 3> >(log_stdout "stdout")
+  stdout_pid=$!
+  exec 4> >(log_stdout "stderr" >&2)
+  stderr_pid=$!
+  # run the command in the background so we can wait for the log pumps
+  "$@" 1>&3 2>&4 &
   tcl_pid=$!
   Msg Debug "pid = $tcl_pid"
-  while kill -0 $tcl_pid 2>/dev/null; do
-    sleep 1
-  done
+  wait $tcl_pid
+  exec 3>&-
+  exec 4>&-
+  wait $stdout_pid $stderr_pid 2>/dev/null
+  sleep 1
 }
+
+# function Log_capture(){
+
+#   Msg Debug "Logger args : $*"
+#   $* > >(log_stdout "stdout") 2> >(log_stdout "stderr" >&2) &
+#   # $* > >(test1 "stdout") 2> >(test2 "stderr") &
+#   tcl_pid=$!
+#   Msg Debug "pid = $tcl_pid"
+#   while kill -0 $tcl_pid 2>/dev/null; do
+#     sleep 1
+#   done
+#   wait
+#   sleep 1
+# }
 
 ## @function Log_capture()
   #
