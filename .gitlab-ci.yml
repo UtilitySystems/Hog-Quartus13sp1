@@ -85,7 +85,7 @@ test_launch_commands:
     paths:
       - hog-examples/fifo_hierarchy.txt
       - hog-examples/abacus_hierarchy.txt
-      - hog-examples/bd_hierarachy.txt
+      - hog-examples/bd_hierarchy.txt
       - hog-examples/xml_output/
       - hog-examples/Top/example_vivado_vitis_zynqmp/*.csv
     expire_in: 1 week
