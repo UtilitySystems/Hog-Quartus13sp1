@@ -456,7 +456,8 @@ if {$cmd == -1} {
     lassign [GetHogFiles -ext_path $ext_path \
         -list_files ".src,.ext" $proj_list_dir $repo_path]\
         listLibraries listProperties listSrcSets
-    Hierarchy $listProperties $listLibraries $repo_path $output_path $compile_order $light_hierarchy $top_module $ignored_hierarchy $include_ieee $include_gen_prods
+    Hierarchy $listProperties $listLibraries $repo_path $output_path $compile_order \
+    $light_hierarchy $top_module $ignored_hierarchy $include_ieee $include_gen_prods
     exit 0
   }
   if {$do_sigasi == 1} {
