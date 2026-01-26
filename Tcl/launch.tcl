@@ -1,6 +1,6 @@
 #!/usr/bin/env tclsh
 # @file
-#   Copyright 2018-2025 The University of Birmingham
+#   Copyright 2018-2026 The University of Birmingham
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -81,7 +81,7 @@ set default_commands {
     set do_vitis_build 0
   # NAME*: WORKFLOW or W
   # DESCRIPTION: Runs the full workflow, creates the project if not existing.
-  # OPTIONS: check_syntax, ext_path.arg, impl_only, bitstream_only, njobs.arg, no_bitstream, recreate, synth_only, vitis_only, xsa.arg verbose
+  # OPTIONS: bitstream_only, check_syntax, ext_path.arg, impl_only, njobs.arg, no_bitstream, recreate, synth_only, verbose, vitis_only, xsa.arg
   }
 
   \^(CREATEWORKFLOW|CW)?$ {#
@@ -93,7 +93,7 @@ set default_commands {
     set do_vitis_build 0
   # NAME: CREATEWORKFLOW or CW
   # DESCRIPTION: Creates the project -even if existing- and launches the complete workflow.
-  # OPTIONS: check_syntax, ext_path.arg, njobs.arg, no_bitstream, synth_only, vivado_only, vitis_only, xsa.arg verbose
+  # OPTIONS: check_syntax, ext_path.arg, njobs.arg, no_bitstream, synth_only, verbose, vivado_only, vitis_only, xsa.arg
   }
 
   \^(CHECKSYNTAX|CS)?$ {#proj
@@ -168,7 +168,7 @@ set default_commands {
     set do_hierarchy 1
   # NAME: TREE or T
   # DESCRIPTION: Print the design hierarchy for the chosen project.
-  # OPTIONS: ext_path.arg, output.arg, light, compile_order, ignore.arg, include_ieee, include_gen_prods, top.arg, verbose
+  # OPTIONS: compile_order, ext_path.arg, ignore.arg, include_gen_prods, include_ieee, light, output.arg, top.arg, verbose
   }
 
   default {
