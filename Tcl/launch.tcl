@@ -98,14 +98,14 @@ set default_commands {
 
   \^(CHECKSYNTAX|CS)?$ {#proj
     set do_check_syntax 1
-  # NAME: CECHSYNTAX or CS
+  # NAME: CHECKSYNTAX or CS
   # DESCRIPTION: Check the syntax of the project. Only for Vivado, Quartus and Libero projects.
   # OPTIONS: ext_path.arg, recreate, verbose
   }
 
-  \^X(ML)?$ {#proj
+  \^IP(BUS)?$ {#proj
     set do_ipbus_xml 1
-  # NAME: XML or X
+  # NAME: IPBUS or IP
   # DESCRIPTION: Copy, check or create the IPbus XMLs for the project.
   # OPTIONS: dst_dir.arg, generate, verbose
   }
