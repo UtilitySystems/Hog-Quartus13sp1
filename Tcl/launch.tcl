@@ -103,9 +103,9 @@ set default_commands {
   # OPTIONS: ext_path.arg, recreate, verbose
   }
 
-  \^IP(BUS)?$ {#proj
+  \^IPB(US)?$ {#proj
     set do_ipbus_xml 1
-  # NAME: IPBUS or IP
+  # NAME: IPBUS or IPB
   # DESCRIPTION: Copy, check or create the IPbus XMLs for the project.
   # OPTIONS: dst_dir.arg, generate, verbose
   }
