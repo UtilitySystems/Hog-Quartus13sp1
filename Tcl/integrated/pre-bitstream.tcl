@@ -67,7 +67,7 @@ cd "$tcl_path/../.."
 #number of threads
 set maxThreads [GetMaxThreads [file normalize $tcl_path/../../Top/$group_name/$proj_name]]
 if {$maxThreads != 1} {
-  Msg CriticalWarning "Multithreading enabled. Bitfile will not be deterministic. Number of threads: $maxThreads"
+  Msg Warning "Multithreading enabled. Bitfile will not be deterministic. Number of threads: $maxThreads"
 } else {
   Msg Info "Disabling multithreading to assure deterministic bitfile"
 }

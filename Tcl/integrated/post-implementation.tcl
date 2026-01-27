@@ -113,7 +113,7 @@ if {[file exists $dst_dir/diff_presynthesis.txt]} {
 #number of threads
 set maxThreads [GetMaxThreads [file normalize ./Top/$group_name/$proj_name]]
 if {$maxThreads != 1} {
-  Msg CriticalWarning "Multithreading enabled. Number of threads: $maxThreads"
+  Msg Warning "Multithreading enabled. Number of threads: $maxThreads"
   set commit_usr "0000000"
 } else {
   set commit_usr $commit
