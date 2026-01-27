@@ -6288,6 +6288,11 @@ proc WriteGenerics {mode repo_path design date timee\
   foreach l $libs v $vers h $hashes {
     set ver "[string toupper $l]_VER=[FormatGeneric $v]"
     set hash "[string toupper $l]_SHA=[FormatGeneric $h]"
+    # Replaces all occurrences of dots (.) and hyphens (-) in the version string
+    # with underscores (_) to create a filesystem-safe version identifier.
+    # Uses regsub with -all flag to replace all matches of the regex pattern [\.-]
+    set ver [regsub -all {[\.-]} $ver {_}]
+    set hash [regsub -all {[\.-]} $hash {_}]
     lappend generic_string "$ver" "$hash"
   }
 
@@ -6300,6 +6305,8 @@ proc WriteGenerics {mode repo_path design date timee\
     set repo_name [file tail $repo]
     set ver "[string toupper $repo_name]_VER=[FormatGeneric $v]"
     set hash "[string toupper $repo_name]_SHA=[FormatGeneric $h]"
+    set ver [regsub -all {[\.-]} $ver {_}]
+    set hash [regsub -all {[\.-]} $hash {_}]
     lappend generic_string "$ver" "$hash"
   }
 
