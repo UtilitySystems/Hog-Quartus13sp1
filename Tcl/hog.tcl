@@ -6288,8 +6288,8 @@ proc WriteGenerics {mode repo_path design date timee\
   foreach l $libs v $vers h $hashes {
     set ver "[string toupper $l]_VER=[FormatGeneric $v]"
     set hash "[string toupper $l]_SHA=[FormatGeneric $h]"
-    # Replaces all occurrences of dots (.) and hyphens (-) in the version string
-    # with underscores (_) to create a filesystem-safe version identifier.
+    # Replaces all occurrences of dots (.) and hyphens (-) in the generic name
+    # with underscores (_) to make it compatible with VHDL/Verilog syntax
     # Uses regsub with -all flag to replace all matches of the regex pattern [\.-]
     set ver [regsub -all {[\.-]} $ver {_}]
     set hash [regsub -all {[\.-]} $hash {_}]
