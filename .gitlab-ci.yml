@@ -1,4 +1,4 @@
-#   Copyright 2018-2025 The University of Birmingham
+#   Copyright 2018-2026 The University of Birmingham
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -77,6 +77,10 @@ test_launch_commands:
     - ./Hog/Do TREE vivado/bd_design -output bd_hierarchy.txt
     - ./Hog/Do SIGASI vivado/fifo
     - ./Hog/Do SIGASI vivado/fifo -verbose
+    - ./Hog/Do IPBUS vivado/fifo
+    - ./Hog/Do IPBUS vivado/fifo -generate
+    - ./Hog/Do IPBUS vivado/fifo -verbose
+    - ./Hog/Do IPBUS vivado/fifo -dst_dir ./xml_output
     - ./Hog/Do XML vivado/fifo
     - ./Hog/Do XML vivado/fifo -generate
     - ./Hog/Do XML vivado/fifo -verbose
