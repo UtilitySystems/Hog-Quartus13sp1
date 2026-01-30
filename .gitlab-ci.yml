@@ -105,21 +105,21 @@ launch_github:
   except:
     variables: [$CI_COMMIT_REF_NAME =~ /^test\/.*$/i]
   script:
-    - if git diff origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME...HEAD --name-only | grep -qE '^(Tcl|Other|\.\/github)/'; then echo "Changes detected in Tcl or Other folder"; else echo "No changes in Tcl or Other folder. Skipping the GitHub job..."; exit 0; fi
-      - glab auth login -t $HOG_PUSH_TOKEN --hostname $CI_SERVER_HOST
-      - gh auth status
-      - git clone https://hog-user:${GITHUB_TOKEN}@github.com/hog-CERN/TestFirmware.git
-      - cd TestFirmware/
-      # Let's wait 3m for the mirror to update
-      - git submodule init Hog
-      - git submodule update Hog
-      - git fetch -p
-      - if git branch -r | grep -q "auto/$CI_COMMIT_REF_NAME"; then
+    - if git diff origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME...HEAD --name-only | grep -qE '^(Tcl|Other|.\/github)/'; then echo "Changes detected in Tcl or Other folder"; else echo "No changes in Tcl or Other folder. Skipping the GitHub job..."; exit 0; fi
+    - glab auth login -t $HOG_PUSH_TOKEN --hostname $CI_SERVER_HOST
+    - gh auth status
+    - git clone https://hog-user:${GITHUB_TOKEN}@github.com/hog-CERN/TestFirmware.git
+    - cd TestFirmware/
+    # Let's wait 3m for the mirror to update
+    - git submodule init Hog
+    - git submodule update Hog
+    - git fetch -p
+    - if git branch -r | grep -q "auto/$CI_COMMIT_REF_NAME"; then
         git push origin --delete auto/$CI_COMMIT_REF_NAME;
-        fi;
-      - git checkout -b auto/$CI_COMMIT_REF_NAME;
-      - cd Hog
-      - while true; do
+      fi;
+    - git checkout -b auto/$CI_COMMIT_REF_NAME;
+    - cd Hog
+    - while true; do
         git fetch -p;
         if git show --quiet  $CI_COMMIT_SHA > /dev/null 2>&1; then
           echo "Commit $CI_COMMIT_SHA found, proceeding...";
@@ -129,21 +129,21 @@ launch_github:
           echo "Commit $CI_COMMIT_SHA not found, waiting for the mirror to update...";
           sleep 5;
         fi;
-        done
-      - git checkout $CI_COMMIT_SHA
-      - cd ..
-      - perl -pi -e 's/^\s*uses:.*$/    uses:\ hog-CERN\/Hog\/.github\/workflows\/Hog-main.yml\@'"$CI_COMMIT_SHA"'/' .github/workflows/main.yml
-      - perl -pi -e 's/^\s*uses:.*$/    uses:\ hog-CERN\/Hog\/.github\/workflows\/Hog-pull.yml\@'"$CI_COMMIT_SHA"'/' .github/workflows/pull.yml
-      - perl -pi -e 's/^\s*uses:.*$/    uses:\ hog-CERN\/Hog\/.github\/workflows\/Hog-tag.yml\@'"$CI_COMMIT_SHA"'/' .github/workflows/tag.yml
-      - git diff-index --quiet HEAD || git commit -am "Updating Hog to $CI_COMMIT_SHA"
-      - git push -u https://hog-user:${GITHUB_TOKEN}@github.com/hog-CERN/TestFirmware.git auto/$CI_COMMIT_REF_NAME
-      # Check if there is already a MR open with the current branch, if not open it
-      - PR_NR=$(gh pr list -R hog-CERN/TestFirmware -H auto/${CI_COMMIT_REF_NAME} -B develop --json number -q '.[0].number')
-      - if [[ "$PR_NR" == "" ]]; then
+      done
+    - git checkout $CI_COMMIT_SHA
+    - cd ..
+    - perl -pi -e 's/^\s*uses:.*$/    uses:\ hog-CERN\/Hog\/.github\/workflows\/Hog-main.yml\@'"$CI_COMMIT_SHA"'/' .github/workflows/main.yml
+    - perl -pi -e 's/^\s*uses:.*$/    uses:\ hog-CERN\/Hog\/.github\/workflows\/Hog-pull.yml\@'"$CI_COMMIT_SHA"'/' .github/workflows/pull.yml
+    - perl -pi -e 's/^\s*uses:.*$/    uses:\ hog-CERN\/Hog\/.github\/workflows\/Hog-tag.yml\@'"$CI_COMMIT_SHA"'/' .github/workflows/tag.yml
+    - git diff-index --quiet HEAD || git commit -am "Updating Hog to $CI_COMMIT_SHA"
+    - git push -u https://hog-user:${GITHUB_TOKEN}@github.com/hog-CERN/TestFirmware.git auto/$CI_COMMIT_REF_NAME
+    # Check if there is already a MR open with the current branch, if not open it
+    - PR_NR=$(gh pr list -R hog-CERN/TestFirmware -H auto/${CI_COMMIT_REF_NAME} -B develop --json number -q '.[0].number')
+    - if [[ "$PR_NR" == "" ]]; then
         echo "There are no open pull requests with source branch 'auto/$CI_COMMIT_REF_NAME'. I will open one...";
           gh pr create -H auto/$CI_COMMIT_REF_NAME -B develop -f -R hog-CERN/TestFirmware;
           PR_NR=$(gh pr list -R hog-CERN/TestFirmware -H apptainer --json number -q '.[0].number');
-        else
+      else
         gh pr view $PR_NR;
       fi;
     - sleep 10s
