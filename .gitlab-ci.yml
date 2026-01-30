@@ -98,7 +98,7 @@ test_launch_commands:
 
 launch_github:
   stage: merge_checks
-  image: hogcern/hog:develop
+  image: hogcern/hog:2026.1
   only:
     refs: [merge_requests]
     variables: [$CI_MERGE_REQUEST_TARGET_BRANCH_NAME =~ /^(master|develop)$/]
@@ -152,7 +152,7 @@ launch_github:
 
 launch_testfirmware:
   stage: merge_checks
-  image: hogcern/hog:develop
+  image: hogcern/hog:2026.1
   only:
     refs: [merge_requests]
     variables: [$CI_MERGE_REQUEST_TARGET_BRANCH_NAME =~ /^(master|develop)$/]
@@ -221,7 +221,7 @@ launch_testfirmware:
 
 build-doxygen-test:
   stage: merge_checks
-  image: hogcern/hog:develop
+  image: hogcern/hog:2026.1
   only:
     refs: [merge_requests]
     variables: [$CI_MERGE_REQUEST_TARGET_BRANCH_NAME =~ /^(master|develop)$/]
@@ -241,7 +241,7 @@ build-doxygen-test:
 
 build-doxygen-develop:
   stage: build_doc
-  image: hogcern/hog:develop
+  image: hogcern/hog:2026.1
   only:
     refs: [tags]
     variables: [$CI_COMMIT_TAG =~ /^(v.*)$/]
@@ -254,7 +254,7 @@ build-doxygen-develop:
 
 build-doxygen-official:
   stage: build_doc
-  image: hogcern/hog:develop
+  image: hogcern/hog:2026.1
   only:
     refs: [tags]
     variables: [$CI_COMMIT_TAG =~ /^(Hog.*)$/]
@@ -272,15 +272,15 @@ check_docker:
       when: on_success
   script:
     - if grep -Rq "hogcern/hog:develop" .; then
-        echo "ERROR. The Docker image 'hogcern/hog:develop' is used in the codebase. Please, change it to 'gitlab-registry.cern.ch/hog/hog-docker:master' before merging into Hog master. This is necessary to ensure that the master branch is always built with the latest stable Docker image. ";
-        echo "You might also need to update the Dockerfile in the hog-docker repository. https://gitlab.cern.ch/hog/hog-docker/";
+        echo "ERROR. The Docker image 'hogcern/hog:develop' is used in the codebase. Please, change it to 'hogcern/hog:<docker_tag>' before merging into Hog master. This is necessary to ensure that the master branch is always built with the latest stable Docker image. ";
+        echo "You might also need to create the Dockerfile tag in the hog-docker repository. https://gitlab.com/hog-cern/hog-docker";
         exit 1;
       fi
   interruptible: true
 
 changelog:
   stage: merge_checks
-  image: hogcern/hog:develop
+  image: hogcern/hog:2026.1
   rules:
     - if: $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "master" && $CI_MERGE_REQUEST_SOURCE_BRANCH_NAME != "develop"
       when: on_success
@@ -311,7 +311,7 @@ changelog:
 
 tagging:
   stage: tag
-  image: hogcern/hog:develop
+  image: hogcern/hog:2026.1
   rules:
     - if: '$CI_COMMIT_REF_NAME == "master"  && $CI_PIPELINE_SOURCE == "push"'
       when: always
@@ -377,7 +377,7 @@ tagging:
 
 shellcheck:
   stage: merge_checks
-  image: hogcern/hog:develop
+  image: hogcern/hog:2026.1
   only:
     refs: [merge_requests]
     variables: [$CI_MERGE_REQUEST_TARGET_BRANCH_NAME =~ /^(master|develop)$/]
@@ -389,7 +389,7 @@ shellcheck:
 
 yamllint:
   stage: merge_checks
-  image: hogcern/hog:develop
+  image: hogcern/hog:2026.1
   only:
     refs: [merge_requests]
     variables: [$CI_MERGE_REQUEST_TARGET_BRANCH_NAME =~ /^(master|develop)$/]
@@ -402,7 +402,7 @@ yamllint:
 
 tclint:
   stage: merge_checks
-  image: hogcern/hog:develop
+  image: hogcern/hog:2026.1
   only:
     refs: [merge_requests]
     variables: [$CI_MERGE_REQUEST_TARGET_BRANCH_NAME =~ /^(master|develop)$/]
@@ -414,7 +414,7 @@ tclint:
 
 update_mirrors:
   stage: mirrors
-  image: hogcern/hog:develop
+  image: hogcern/hog:2026.1
   script:
     - glab auth login -t $HOG_PUSH_TOKEN --hostname $CI_SERVER_HOST
     # Update Mirror
@@ -424,7 +424,7 @@ update_mirrors:
 
 create_release_note:
   stage: tag
-  image: hogcern/hog:develop
+  image: hogcern/hog:2026.1
   only:
     refs: [tags]
     variables: [$CI_COMMIT_TAG =~ /^(v.*)|(Hog.*)$/]
@@ -442,7 +442,7 @@ create_release_note:
       fi
 
 # launch_validation:
-#   image: hogcern/hog:develop
+#   image: hogcern/hog:2026.1
 #   only: [develop]
 #   script:
 #     - 'if [[ $CI_COMMIT_REF_NAME == "develop" ]]; then curl --request POST --header
