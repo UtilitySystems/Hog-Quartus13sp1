@@ -96,7 +96,7 @@ if [ ! "$APPTAINER_IMAGE" == "none" ]; then
             echo
             $CMD --version
             echo
-            apptainer exec -H "$(realpath "$THIS_DIR"/../..)" "$APPTAINER_IMAGE" /bin/bash -c "${THIS_DIR}/CheckEnv.sh $PROJ";
+            apptainer exec -H "$(realpath "$THIS_DIR"/../..)" "$APPTAINER_IMAGE" /bin/bash -c "export PATH=${HOG_PATH}:\$PATH; ${THIS_DIR}/CheckEnv.sh $PROJ";
             exit $?
         else
             echo "Hog-Warning: Apptainer executable not found."

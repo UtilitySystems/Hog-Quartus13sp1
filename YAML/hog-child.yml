@@ -64,7 +64,7 @@
           if [[ -n $HOG_APPTAINER_EXTRA_PATH ]]; then
             EXTRA_PATH="-B $HOG_APPTAINER_EXTRA_PATH";
           fi;
-          apptainer exec -H $PWD $EXTRA_PATH $HOG_APPTAINER_IMAGE /bin/bash -c "export PATH=${HOG_PATH}:$PATH; $CHK_CMD";
+          apptainer exec -H $PWD $EXTRA_PATH $HOG_APPTAINER_IMAGE /bin/bash -c "export PATH=${HOG_PATH}:\$PATH; $CHK_CMD";
         else
           echo $CHK_CMD;
           eval $CHK_CMD;
@@ -95,7 +95,7 @@
           if [[ -n $HOG_APPTAINER_EXTRA_PATH ]]; then
             EXTRA_PATH="-B $HOG_APPTAINER_EXTRA_PATH";
           fi;
-          apptainer exec -H $PWD $EXTRA_PATH $HOG_APPTAINER_IMAGE /bin/bash -c "export PATH=${HOG_PATH}:$PATH; $SIM_CMD";
+          apptainer exec -H $PWD $EXTRA_PATH $HOG_APPTAINER_IMAGE /bin/bash -c "export PATH=${HOG_PATH}:\$PATH; $SIM_CMD";
         else
           echo $SIM_CMD;
           $(echo $SIM_CMD);
@@ -136,7 +136,7 @@
           if [ -n "$HOG_APPTAINER_EXTRA_PATH" ]; then
             EXTRA_PATH="-B $HOG_APPTAINER_EXTRA_PATH";
           fi;
-          apptainer exec -H $PWD $EXTRA_PATH $HOG_APPTAINER_IMAGE /bin/bash -c "export PATH=${HOG_PATH}:$PATH; $CHK_CMD";
+          apptainer exec -H $PWD $EXTRA_PATH $HOG_APPTAINER_IMAGE /bin/bash -c "export PATH=${HOG_PATH}:\$PATH; $CHK_CMD";
         else
           echo $CHK_CMD;
           eval $CHK_CMD;
@@ -239,7 +239,7 @@
             if [ -n "$HOG_APPTAINER_EXTRA_PATH" ]; then
                 EXTRA_PATH="-B $HOG_APPTAINER_EXTRA_PATH";
             fi;
-            apptainer exec -H $PWD $EXTRA_PATH $HOG_APPTAINER_IMAGE /bin/bash -c "PATH=${HOG_PATH}:$PATH; $EXEC_CMD";
+            apptainer exec -H $PWD $EXTRA_PATH $HOG_APPTAINER_IMAGE /bin/bash -c "PATH=${HOG_PATH}:\$PATH; $EXEC_CMD";
         else
             echo "$EXEC_CMD";
             eval "$EXEC_CMD";

@@ -293,7 +293,7 @@ jobs:
                   if [ "$HOG_APPTAINER_EXTRA_PATH" != "" ]; then
                     EXTRA_PATH="-B $HOG_APPTAINER_EXTRA_PATH";
                   fi;
-                  apptainer exec -H $PWD $EXTRA_PATH $HOG_APPTAINER_IMAGE /bin/bash -c "PATH=${HOG_PATH}:$PATH; $CHK_CMD";
+                  apptainer exec -H $PWD $EXTRA_PATH $HOG_APPTAINER_IMAGE /bin/bash -c "PATH=${HOG_PATH}:\$PATH; $CHK_CMD";
                 fi
               else
                 echo "Project version checker is disabled.";
@@ -373,7 +373,7 @@ jobs:
                   if [ "$HOG_APPTAINER_EXTRA_PATH" != "" ]; then
                     EXTRA_PATH="-B $HOG_APPTAINER_EXTRA_PATH";
                   fi;
-                  apptainer exec -H $PWD $EXTRA_PATH $HOG_APPTAINER_IMAGE /bin/bash -c "PATH=${HOG_PATH}:$PATH; $EXEC_CMD";
+                  apptainer exec -H $PWD $EXTRA_PATH $HOG_APPTAINER_IMAGE /bin/bash -c "PATH=${HOG_PATH}:\$PATH; $EXEC_CMD";
                 fi;
               fi;
               if [[ -n "$HOG_ONLY_SYNTH" ]] && [[ $HOG_ONLY_SYNTH == '1' ]]; then
@@ -467,7 +467,7 @@ jobs:
                   if [ "$HOG_APPTAINER_EXTRA_PATH" != "" ]; then
                     EXTRA_PATH="-B $HOG_APPTAINER_EXTRA_PATH";
                   fi;
-                  apptainer exec -H $PWD $EXTRA_PATH $HOG_APPTAINER_IMAGE /bin/bash -c "PATH=${HOG_PATH}:$PATH; $CHK_CMD";
+                  apptainer exec -H $PWD $EXTRA_PATH $HOG_APPTAINER_IMAGE /bin/bash -c "PATH=${HOG_PATH}:\$PATH; $CHK_CMD";
                 fi
               else
                 echo "Project version checker is disabled.";
@@ -498,7 +498,7 @@ jobs:
                   if [ "$HOG_APPTAINER_EXTRA_PATH" != "" ]; then
                     EXTRA_PATH="-B $HOG_APPTAINER_EXTRA_PATH";
                   fi;
-                  apptainer exec -H $PWD $EXTRA_PATH $HOG_APPTAINER_IMAGE /bin/bash -c "PATH=${HOG_PATH}:$PATH; $SIM_CMD";
+                  apptainer exec -H $PWD $EXTRA_PATH $HOG_APPTAINER_IMAGE /bin/bash -c "PATH=${HOG_PATH}:\$PATH; $SIM_CMD";
                 fi
               fi
       - name: Archive Simulation Artifacts
