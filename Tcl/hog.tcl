@@ -17,7 +17,10 @@
 if {![info exists tcl_path]} {
   set tcl_path [file normalize "[file dirname [info script]]"]
 }
-source "$tcl_path/utils/Logger.tcl"
+
+set hog_path [file normalize "[file dirname [info script]]"]
+
+source "$hog_path/utils/Logger.tcl"
 
 
 #### GLOBAL CONSTANTS
