@@ -3132,7 +3132,7 @@ proc GetRepoVersions {proj_dir repo_path {ext_path ""} {sim 0}} {
 
 
   #Of all the constraints we get the most recent
-  if {"{}" eq $cons_hashes} {
+  if {[IsInList {} $cons_hashes]} {
     #" Fake comment for Visual Code Studio
     Msg CriticalWarning "No hashes found for constraints files (not in git)"
     set cons_hash ""
