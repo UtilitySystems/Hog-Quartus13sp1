@@ -3907,15 +3907,13 @@ proc HandleIP {what_to_do xci_file ip_path repo_path {gen_dir "."} {force 0}} {
         }
 
         Msg Info "Creating local archive with IP generated files..."
-        set first_file 0
+        set tar_files []
+
         foreach f $ip_gen_files {
-          if {$first_file == 0} {
-            ::tar::create $file_name.tar "[Relative [file normalize $repo_path] $f]"
-            set first_file 1
-          } else {
-            ::tar::add $file_name.tar "[Relative [file normalize $repo_path] $f]"
-          }
+          lappend tar_files "[Relative [file normalize $repo_path] $f]"
         }
+
+        ::tar::create $file_name.tar $tar_files
 
         Msg Info "Copying IP generated files for $xci_name..."
         if {$on_eos == 1} {
