@@ -187,6 +187,8 @@
                 echo "Hog-CI(warning) - kinit command not found, skipping EOS authentication.";
               fi;
             fi;
+          else
+            ENABLE_EOS=0;
           fi;
         fi;
         if [ -n "$HOG_ONLY_SYNTH" ] && [ "$HOG_ONLY_SYNTH" = '1' ]; then
@@ -239,7 +241,16 @@
             if [ -n "$HOG_APPTAINER_EXTRA_PATH" ]; then
                 EXTRA_PATH="-B $HOG_APPTAINER_EXTRA_PATH";
             fi;
-            apptainer exec -H $PWD $EXTRA_PATH $HOG_APPTAINER_IMAGE /bin/bash -c "PATH=${HOG_PATH}:\$PATH; $EXEC_CMD";
+            if [ "$ENABLE_EOS" -eq 1 ]; then
+              KINIT_CMD="if command -v kinit &> /dev/null; then
+                until echo \"$EOS_PASSWORD\" | kinit \"$EOS_USER@CERN.CH\"; do echo \"Retrying\"; sleep 2; done;
+              else
+                echo \"Hog-CI(warning) - kinit command not found, skipping EOS authentication.\";
+              fi;"
+            else
+              KINIT_CMD="echo \"Not using EOS, skipping authentication.\"";
+            fi;
+            apptainer exec -H $PWD $EXTRA_PATH $HOG_APPTAINER_IMAGE /bin/bash -c "PATH=${HOG_PATH}:\$PATH; $KINIT_CMD; $EXEC_CMD";
         else
             echo "$EXEC_CMD";
             eval "$EXEC_CMD";
