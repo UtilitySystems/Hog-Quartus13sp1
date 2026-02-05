@@ -631,6 +631,7 @@ proc BinaryStepName {part} {
 # @param[in] project_file The project file (for Libero)
 proc CheckSyntax {project_name repo_path {project_file ""}} {
   if {[IsVivado]} {
+    update_compile_order
     set syntax [check_syntax -return_string]
     if {[string first "CRITICAL" $syntax] != -1} {
       check_syntax
