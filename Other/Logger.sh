@@ -300,6 +300,9 @@ function log_stdout(){
           if [[ "$line" =~ "error: unable to create directory (errc=1) (Operation not permitted)" ]]; then
             msgType="critical"
           fi
+          if [[ "$line" =~ "error: unable to open directory (errc=1) (Operation not permitted) " ]]; then
+            msgType="critical"
+          fi
           if [[ "$line" =~ [Ee]os ]]; then
             msgType="critical"
           fi
