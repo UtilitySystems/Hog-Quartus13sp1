@@ -242,11 +242,7 @@
                 EXTRA_PATH="-B $HOG_APPTAINER_EXTRA_PATH";
             fi;
             if [ "$ENABLE_EOS" -eq 1 ]; then
-              KINIT_CMD="if command -v kinit &> /dev/null; then
-                until echo \"$EOS_PASSWORD\" | kinit \"$EOS_USER@CERN.CH\"; do echo \"Retrying\"; sleep 2; done;
-              else
-                echo \"Hog-CI(warning) - kinit command not found, skipping EOS authentication.\";
-              fi;"
+              KINIT_CMD="if command -v kinit &> /dev/null; then until echo \"$EOS_PASSWORD\" | kinit \"$EOS_USER@CERN.CH\"; do echo \"Retrying\"; sleep 2; done; else echo \"Hog-CI(warning) - kinit command not found, skipping EOS authentication.\"; fi;"
             else
               KINIT_CMD="echo \"Not using EOS, skipping authentication.\"";
             fi;
