@@ -242,10 +242,10 @@
               EXTRA_PATH="-B $HOG_APPTAINER_EXTRA_PATH";
             fi;
             if [ "$ENABLE_EOS" = "1" ]; then
-              KINIT_CMD="kinit $EOS_USER@CERN.CH <<< $EOS_PASSWORD"
+              KINIT_CMD="kinit $EOS_USER@CERN.CH <<< $EOS_PASSWORD";
             else
-              KINIT_CMD="echo 'Skipping EOS'"
-            fi
+              KINIT_CMD="echo 'Skipping EOS'";
+            fi;
             apptainer exec -H $PWD $EXTRA_PATH $HOG_APPTAINER_IMAGE /bin/bash -c "PATH=${HOG_PATH}:\$PATH; $KINIT_CMD && $EXEC_CMD";
         else
             echo "$EXEC_CMD";
