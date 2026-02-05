@@ -242,7 +242,7 @@
               EXTRA_PATH="-B $HOG_APPTAINER_EXTRA_PATH";
             fi;
             if [ "$ENABLE_EOS" = "1" ]; then
-              KINIT_CMD="kinit $EOS_USER@CERN.CH <<< $EOS_PASSWORD";
+              KINIT_CMD=(kinit $EOS_USER@CERN.CH <<< $EOS_PASSWORD) || echo 'Kinit failed with exit code \$?, but continuing anyway...'";
             else
               KINIT_CMD="echo 'Skipping EOS'";
             fi;
