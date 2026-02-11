@@ -927,9 +927,7 @@ proc ConfigureApp {app_name app_conf} {
       if {[IsRelativePath $v] == 1} {
         set v "$globalSettings::repo_path/$v"
       }
-      if {[file exists $v]} {
-        set v $globalSettings::repo_path/$v
-      } else {
+      if {![file exists $v]} {
         Msg Warning "Impossible to set property $p to $v. File is missing"
         continue
       }
