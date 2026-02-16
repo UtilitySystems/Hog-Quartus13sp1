@@ -5081,15 +5081,14 @@ proc LaunchSimulation {project_name lib_path simsets {repo_path .} {scripts_only
 
 # @brief Launch the RTL Analysis, for the current IDE and project
 #
-# @param[in] run_folder   The folder where to store the run results
-# @param[in] project_name The name of the project
 # @param[in] repo_path    The main path of the git repository (Default .)
-# @param[in] ext_path     The path of source files external to the git repo (Default "")
-# @param[in] njobs        The number of parallel CPU jobs for the synthesis (Default 4)
-proc LaunchRTLAnalysis {} {
+proc LaunchRTLAnalysis {repo_path} {
   if {[IsVivado]} {
     Msg Info "Starting RTL Analysis..."
+    cd $repo_path
     synth_design -rtl -name rtl_1
+  } else {
+    Msg Warning "RTL Analysis is not yet supported for [GetIDEName]."
   }
 }
 
