@@ -1720,6 +1720,7 @@ proc GenerateBitstream {{run_folder ""} {repo_path .} {njobs 1}} {
 #  @param[in] commandOpts the command options to be used during system generation as they are in qsys-generate options
 #
 proc GenerateQsysSystem {qsysFile commandOpts} {
+  global env
   if {[file exists $qsysFile] != 0} {
     set qsysPath [file dirname $qsysFile]
     set qsysName [file rootname [file tail $qsysFile]]
@@ -3990,6 +3991,7 @@ proc HexVersionToString {version} {
 
 # @brief Import TCL Lib from an external installation for Libero, Synplify and Diamond
 proc ImportTclLib {} {
+  global env
   if {[IsLibero] || [IsDiamond] || [IsSynplify]} {
     if {[info exists env(HOG_TCLLIB_PATH)]} {
       lappend auto_path $env(HOG_TCLLIB_PATH)
