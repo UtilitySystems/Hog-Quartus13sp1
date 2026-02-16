@@ -781,7 +781,7 @@ if {$do_check_syntax == 1} {
 
 ######### RTL ANALYSIS ########
 if {$do_rtl == 1} {
-  LaunchRTLAnalysis $do_reset $do_create $run_folder $project_name $repo_path $ext_path $options(njobs)
+  LaunchRTLAnalysis $repo_path
 }
 
 if {$do_vitis_build == 1} {

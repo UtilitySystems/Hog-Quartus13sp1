@@ -1720,6 +1720,7 @@ proc GenerateBitstream {{run_folder ""} {repo_path .} {njobs 1}} {
 #  @param[in] commandOpts the command options to be used during system generation as they are in qsys-generate options
 #
 proc GenerateQsysSystem {qsysFile commandOpts} {
+  global env
   if {[file exists $qsysFile] != 0} {
     set qsysPath [file dirname $qsysFile]
     set qsysName [file rootname [file tail $qsysFile]]
@@ -3990,6 +3991,7 @@ proc HexVersionToString {version} {
 
 # @brief Import TCL Lib from an external installation for Libero, Synplify and Diamond
 proc ImportTclLib {} {
+  global env
   if {[IsLibero] || [IsDiamond] || [IsSynplify]} {
     if {[info exists env(HOG_TCLLIB_PATH)]} {
       lappend auto_path $env(HOG_TCLLIB_PATH)
@@ -5082,18 +5084,14 @@ proc LaunchSimulation {project_name lib_path simsets {repo_path .} {scripts_only
 #'"
 # @brief Launch the RTL Analysis, for the current IDE and project
 #
-# @param[in] run_folder   The folder where to store the run results
-# @param[in] project_name The name of the project
 # @param[in] repo_path    The main path of the git repository (Default .)
-# @param[in] ext_path     The path of source files external to the git repo (Default "")
-# @param[in] njobs        The number of parallel CPU jobs for the synthesis (Default 4)
-proc LaunchRTLAnalysis {eset do_create run_folder project_name {repo_path .} {ext_path ""} {njobs 4}} {
+proc LaunchRTLAnalysis {repo_path} {
   if {[IsVivado]} {
     Msg Info "Starting RTL Analysis..."
-    #go to repository path
     cd $repo_path
-    
     synth_design -rtl -name rtl_1
+  } else {
+    Msg Warning "RTL Analysis is not yet supported for [GetIDEName]."
   }
 }
 
