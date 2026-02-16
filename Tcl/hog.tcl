@@ -3809,6 +3809,7 @@ proc GitVersion {target_version} {
 # @param[in] force: if not set to 0, will copy the IP to the remote directory even if it is already present
 #
 proc HandleIP {what_to_do xci_file ip_path repo_path {gen_dir "."} {force 0}} {
+  global env
   if {!($what_to_do eq "push") && !($what_to_do eq "pull")} {
     Msg Error "You must specify push or pull as first argument."
   }
