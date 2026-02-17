@@ -93,7 +93,6 @@
         SIM_CMD="$APP_CMD ./Hog/Do SIMULATE $PROJECT_NAME $SIM_ONLY $COMPILE_ONLY $SIMSETS";
         echo $SIM_CMD;
         $(echo $SIM_CMD);
-        fi;
       fi;
   artifacts:
     name: simulation_files
@@ -236,8 +235,7 @@
           fi;
         fi;
         echo "$APP_CMD $EXEC_CMD";
-        eval "$EXEC_CMD";
-        fi;
+        eval "$APP_CMD $EXEC_CMD";
       fi;
     - if [ ! -f "./Projects/$PROJECT_NAME/skip.me" ]; then
         if [ -n "$HOG_ONLY_SYNTH" ] && [ "$HOG_ONLY_SYNTH" = '1' ]; then
