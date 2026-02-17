@@ -62,7 +62,7 @@
         if [[ -n $HOG_APPTAINER_EXTRA_PATH ]]; then
           EXTRA_PATH="-B $HOG_APPTAINER_EXTRA_PATH";
         fi;
-        APP_CMD="apptainer exec -H $PWD $EXTRA_PATH $HOG_APPTAINER_IMAGE /bin/bash -c \"export PATH=${HOG_PATH}:\$PATH;\"";
+        APP_CMD="apptainer exec -H $PWD $EXTRA_PATH $HOG_APPTAINER_IMAGE /bin/bash -c \"export PATH=${HOG_PATH}:\$PATH\";";
       else
         APP_CMD="";
       fi;
@@ -121,7 +121,7 @@
         if [[ -n $HOG_APPTAINER_EXTRA_PATH ]]; then
           EXTRA_PATH="-B $HOG_APPTAINER_EXTRA_PATH";
         fi;
-        APP_CMD="apptainer exec -H $PWD $EXTRA_PATH $HOG_APPTAINER_IMAGE /bin/bash -c \"export PATH=${HOG_PATH}:\$PATH;\"";
+        APP_CMD="apptainer exec -H $PWD $EXTRA_PATH $HOG_APPTAINER_IMAGE /bin/bash -c \"export PATH=${HOG_PATH}:\$PATH\";";
       else
         APP_CMD="";
       fi;
