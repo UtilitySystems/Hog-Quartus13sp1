@@ -741,7 +741,9 @@ proc CheckEnv {project_name ide} {
       set has_error 1
     } else {
       Msg Info "Found executable $cmd."
-      if {$cmd != "diamond"} {
+      if {$cmd == "ghdl"} {
+        Msg Info [exec $cmd --version]
+      } elseif {$cmd != "diamond"} {
         Msg Info [exec $cmd $ver]
       }
     }
