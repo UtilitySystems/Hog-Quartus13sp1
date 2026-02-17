@@ -61,6 +61,7 @@ check_branch_state:
   variables:
     <<: *vars
   script:
+    - ./Hog/Do CIE
     - glab auth login -t $HOG_PUSH_TOKEN --hostname $CI_SERVER_HOST
     - export REPO=`echo $CI_PROJECT_URL | sed -e s#https://##`
     - git remote set-url origin https://${HOG_USER}:${HOG_PUSH_TOKEN}@$REPO

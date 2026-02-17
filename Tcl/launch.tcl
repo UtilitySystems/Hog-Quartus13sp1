@@ -634,6 +634,7 @@ if {[catch {package require cmdline} ERROR] || [catch {package require struct::m
 ## CHECK PROJECT VERSION
 if {$do_checkproj_ver == 1} {
   CheckProjVer $repo_path $project_name $options(simcheck) $options(ext_path)
+  exit 0
 }
 
 set run_folder [file normalize "$repo_path/Projects/$project_name/$project.runs/"]

@@ -624,6 +624,7 @@ proc BinaryStepName {part} {
   }
 }
 
+## @brief Check common environmentatl variables to run the Hog-CI
 proc CheckCIEnv {} {
   global env
   set essential_vars [dict create \
@@ -649,7 +650,7 @@ proc CheckCIEnv {} {
     "HOG_USE_DOXYGEN" "NOT defined. Set this variable to 1 to make Hog-CI run Doxygen and copy the official documentation over when you merge to the official branch."
   ]
 
-  if {[info exists env(HOG_OFFICIAL_BIN_EOS_PATH)] && $env(HOG_OFFICIAL_BIN_EOS_PATH) ne "" || [string match "/eos/*" $env(HOG_OFFICIAL_BIN_PATH)]} {
+  if {([info exists env(HOG_OFFICIAL_BIN_EOS_PATH)] && $env(HOG_OFFICIAL_BIN_EOS_PATH) ne "") || ([info exists env(HOG_OFFICIAL_BIN_PATH)] && [string match "/eos/*" $env(HOG_OFFICIAL_BIN_PATH)])} {
     Msg Info "Official binary path points to EOS. Checking EOS environment variables for uploads..."
     if {[info exists env(HOG_OFFICIAL_BIN_PATH)]} {
       Msg CriticalWarning "Variable HOG_OFFICIAL_BIN_EOS_PATH is defined. From Hog2026.2 this variable will be deprecated. Please, use HOG_OFFICIAL_BIN_PATH instead."
@@ -675,7 +676,7 @@ proc CheckCIEnv {} {
     } else {
       Msg Info "EOS_MGM_URL environment variable is defined and will be used as MGM URL for EOS uploads."
     }
-  } elseif {[info exist $HOG_OFFICIAL_BIN_PATH] } {
+  } elseif {[info exists env(HOG_OFFICIAL_BIN_PATH)] } {
     Msg Info "Variable HOG_OFFICIAL_BIN_PATH is defined. Hog will copy the official binary files to the path defined in this variable. Please make sure this path is correct and has enough space to store the binaries."
   } else {
     Msg Info "No official binary path defined. Hog will not be able to upload binaries."
@@ -689,6 +690,9 @@ proc CheckCIEnv {} {
   }
 }
 
+## brief Check environment to execute chosen project
+# @param[in] project_name The name of the project
+# @param[in] ide The IDE to build the chosen project
 proc CheckEnv {project_name ide} {
   global env
   set has_error 0
@@ -788,7 +792,6 @@ proc CheckProjVer {repo_path project {sim 0} {ext_path ""}} {
   cd $repo_path
   set project_dir $repo_path/Top/$project
   set ver [GetProjectVersion $project_dir $repo_path $ext_path $sim]
-  puts $ver
   if {$ver == 0} {
     Msg Info "$project was modified, continuing with the CI..."
     if {$ci_run == 1 && ![IsQuartus] && ![IsISE]} {
