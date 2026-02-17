@@ -57,7 +57,8 @@ set default_commands {
   \^{CHECKPROJVER|CPV}?$ {#
     set do_checkproj_ver 1
   # NAME: CHECKPROJVER or CPV
-  # DESCRIPTION: Check the project version just before creating the HDL project in Create_Project stage. The CI job will SKIP the project pipeline, if it the project has not been modified with respect to the target branch.
+  # DESCRIPTION: Check the project version just before creating the HDL project in Create_Project stage. \
+  The CI job will SKIP the project pipeline, if it the project has not been modified with respect to the target branch.
   # OPTIONS: ext_path.arg, simcheck, verbose
   }
 
