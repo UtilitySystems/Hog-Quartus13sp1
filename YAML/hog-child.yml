@@ -66,10 +66,10 @@
       else
         APP_CMD="";
       fi;
-    - eval "$APP_CMD ./Hog/Do CPE $PROJECT_NAME"
+    - eval "$APP_CMD './Hog/Do CPE $PROJECT_NAME'"
     - if [[ -v HOG_CHECK_PROJVER ]] && [[ $HOG_CHECK_PROJVER == '1' ]]; then
         CHK_CMD="./Hog/Other/CheckProjVer.sh $EXT_CMD -sim $PROJECT_NAME";
-        eval "$APP_CMD ./Hog/Do CPV $EXT_CMD -simcheck $PROJECT_NAME";
+        eval "$APP_CMD './Hog/Do CPV $EXT_CMD -simcheck $PROJECT_NAME'";
       else
         echo "Project version checker is disabled.";
       fi;
@@ -90,7 +90,7 @@
         else
           export SIMSETS="";
         fi;
-        SIM_CMD="$APP_CMD ./Hog/Do SIMULATE $PROJECT_NAME $SIM_ONLY $COMPILE_ONLY $SIMSETS";
+        SIM_CMD="$APP_CMD './Hog/Do SIMULATE $PROJECT_NAME $SIM_ONLY $COMPILE_ONLY $SIMSETS'";
         echo $SIM_CMD;
         $(echo $SIM_CMD);
       fi;
@@ -125,14 +125,14 @@
       else
         APP_CMD="";
       fi;
-    - eval "$APP_CMD ./Hog/Do CPE $PROJECT_NAME"
+    - eval "$APP_CMD './Hog/Do CPE $PROJECT_NAME'"
     - if grep -q "^libero" Top/$PROJECT_NAME/hog.conf; then
         Xvfb :99 &
         export DISPLAY=:99;
       fi
     - if [[ -v HOG_CHECK_PROJVER ]] && [[ $HOG_CHECK_PROJVER == '1' ]]; then
         CHK_CMD="./Hog/Other/CheckProjVer.sh $EXT_CMD -sim $PROJECT_NAME";
-        eval "$APP_CMD ./Hog/Do CPV $EXT_CMD $PROJECT_NAME";
+        eval "$APP_CMD './Hog/Do CPV $EXT_CMD $PROJECT_NAME'";
       else
         echo "Project version checker is disabled.";
       fi;
@@ -231,11 +231,11 @@
         if [ -f "$HOG_APPTAINER_IMAGE" ]; then
           if [ "$ENABLE_EOS" = "1" ]; then
             KINIT_CMD="(kinit $EOS_USER@CERN.CH <<< $EOS_PASSWORD) || echo 'Kinit failed with exit code \$?, but continuing anyway...';";
-            APP_CMD="$APP_CMD $KINIT_CMD &&";
+            APP_CMD="$APP_CMD '$KINIT_CMD' &&";
           fi;
         fi;
         echo "$APP_CMD $EXEC_CMD";
-        eval "$APP_CMD $EXEC_CMD";
+        eval "$APP_CMD '$EXEC_CMD'";
       fi;
     - if [ ! -f "./Projects/$PROJECT_NAME/skip.me" ]; then
         if [ -n "$HOG_ONLY_SYNTH" ] && [ "$HOG_ONLY_SYNTH" = '1' ]; then
