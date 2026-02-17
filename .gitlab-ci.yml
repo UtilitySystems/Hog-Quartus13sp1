@@ -61,6 +61,7 @@ test_launch_commands:
     - ./Hog/Do CHECKSYNTAX vivado/fifo -recreate
     - ./Hog/Do CHECKCI
     - ./Hog/Do CHECKPROJENV vivado/fifo
+    - git commit -am "Updating Hog"
     - ./Hog/Do CHECKPROJVER vivado/fifo
     - ./Hog/Do CHECKLIST vivado/fifo
     - ./Hog/Do CHECKLIST vivado/fifo -verbose
