@@ -60,8 +60,8 @@ test_launch_commands:
     - ./Hog/Do CHECKSYNTAX vivado/fifo -verbose
     - ./Hog/Do CHECKSYNTAX vivado/fifo -recreate
     - ./Hog/Do CHECKCI
-    - ./Hog/Do CHECKPROJENV vivado/proj
-    - ./Hog/Do CHECKPROJVER vivado/proj
+    - ./Hog/Do CHECKPROJENV vivado/fifo
+    - ./Hog/Do CHECKPROJVER vivado/fifo
     - ./Hog/Do CHECKLIST vivado/fifo
     - ./Hog/Do CHECKLIST vivado/fifo -verbose
     # - ./Hog/Do CHECKYAML
