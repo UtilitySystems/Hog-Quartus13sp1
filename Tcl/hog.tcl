@@ -628,7 +628,8 @@ proc BinaryStepName {part} {
 proc CheckCIEnv {} {
   global env
   set essential_vars [dict create \
-    "HOG_USER" "NOT defined. This variable is essential for git to work properly. It should be set to the username for your service account (a valid git account)." \
+    "HOG_USER" "NOT defined. This variable is essential for git to work properly. \
+    It should be set to the username for your service account (a valid git account)." \
     "HOG_EMAIL" "NOT defined. This variable is essential for git to work properly. It should be set to your service's account email."\
     "HOG_PUSH_TOKEN" "NOT defined. This variable is essential for git to work properly. It should be set to a Gitlab/GitHub API token for your service account."
   ]
@@ -646,20 +647,26 @@ proc CheckCIEnv {} {
   set additional_vars [dict create \
     "HOG_CHECK_YAMLREF" "NOT defined. Set this variable to '1' to make CI fail if there is not coherence between the ref and the Hog." \
     "HOG_TARGET_BRANCH" "NOT defined. Default branch for merge is \"master\""\
-    "HOG_CREATE_OFFICIAL_RELEASE" "NOT defined. Set this variable to '1' to make Hog create an official release in GitHub/Gitlab with the binaries generated in the CI."\
-    "HOG_USE_DOXYGEN" "NOT defined. Set this variable to 1 to make Hog-CI run Doxygen and copy the official documentation over when you merge to the official branch."
+    "HOG_CREATE_OFFICIAL_RELEASE" "NOT defined. \
+    Set this variable to '1' to make Hog create an official release in GitHub/Gitlab with the binaries generated in the CI."\
+    "HOG_USE_DOXYGEN" "NOT defined. \
+    Set this variable to 1 to make Hog-CI run Doxygen and copy the official documentation over when you merge to the official branch."
   ]
 
-  if {([info exists env(HOG_OFFICIAL_BIN_EOS_PATH)] && $env(HOG_OFFICIAL_BIN_EOS_PATH) ne "") || ([info exists env(HOG_OFFICIAL_BIN_PATH)] && [string match "/eos/*" $env(HOG_OFFICIAL_BIN_PATH)])} {
+  if {([info exists env(HOG_OFFICIAL_BIN_EOS_PATH)] && $env(HOG_OFFICIAL_BIN_EOS_PATH) ne "") || \
+  ([info exists env(HOG_OFFICIAL_BIN_PATH)] && [string match "/eos/*" $env(HOG_OFFICIAL_BIN_PATH)])} {
     Msg Info "Official binary path points to EOS. Checking EOS environment variables for uploads..."
     if {[info exists env(HOG_OFFICIAL_BIN_PATH)]} {
-      Msg CriticalWarning "Variable HOG_OFFICIAL_BIN_EOS_PATH is defined. From Hog2026.2 this variable will be deprecated. Please, use HOG_OFFICIAL_BIN_PATH instead."
+      Msg CriticalWarning "Variable HOG_OFFICIAL_BIN_EOS_PATH is defined. \
+      From Hog2026.2 this variable will be deprecated. Please, use HOG_OFFICIAL_BIN_PATH instead."
     }
     if {![info exists env(EOS_PASSWORD)]} {
       if {![info exists env(HOG_PASSWORD)]} {
-        Msg Warning "Neither EOS_PASSWORD nor HOG_PASSWORD environment variable is defined. This variable is essential for Hog to be able to upload files to EOS. Please set one of them to the password for your EOS account."
+        Msg Warning "Neither EOS_PASSWORD nor HOG_PASSWORD environment variable is defined. \
+        This variable is essential for Hog to be able to upload files to EOS. Please set one of them to the password for your EOS account."
       } else {
-        Msg Info "HOG_PASSWORD environment variable is defined and will be used as password for EOS uploads. If you want to use a different password for EOS uploads, please set the EOS_PASSWORD environment variable."
+        Msg Info "HOG_PASSWORD environment variable is defined and will be used as password for EOS uploads. \
+        If you want to use a different password for EOS uploads, please set the EOS_PASSWORD environment variable."
       }
     } else {
       Msg Info "EOS_PASSWORD environment variable is defined and will be used as password for EOS uploads."
@@ -677,7 +684,8 @@ proc CheckCIEnv {} {
       Msg Info "EOS_MGM_URL environment variable is defined and will be used as MGM URL for EOS uploads."
     }
   } elseif {[info exists env(HOG_OFFICIAL_BIN_PATH)] } {
-    Msg Info "Variable HOG_OFFICIAL_BIN_PATH is defined. Hog will copy the official binary files to the path defined in this variable. Please make sure this path is correct and has enough space to store the binaries."
+    Msg Info "Variable HOG_OFFICIAL_BIN_PATH is defined. Hog will copy the official binary files to the path defined in this variable. \
+    Please make sure this path is correct and has enough space to store the binaries."
   } else {
     Msg Info "No official binary path defined. Hog will not be able to upload binaries."
   }
@@ -706,12 +714,17 @@ proc CheckEnv {project_name ide} {
 
   set additional_vars [dict create \
     "HOG_PATH" "NOT defined. Hog might work as long as all the necessary executable are in the PATH variable."\
-    "HOG_XIL_LICENSE" "NOT defined. If this variable is not set to the license servers separated by comas, you need some alternative way of getting your Xilinx license (for example a license file on the machine)."\
-    "LM_LICENSE_FILE" "NOT defined. This variable should be set the Quartus/Libero license servers separated by semicolon. If not, you need an alternative way of getting your Quartus/Libero license."\
+    "HOG_XIL_LICENSE" "NOT defined. If this variable is not set to the license servers separated by comas, \
+    you need some alternative way of getting your Xilinx license (for example a license file on the machine)."\
+    "LM_LICENSE_FILE" "NOT defined. This variable should be set the Quartus/Libero license servers separated by semicolon. \
+    If not, you need an alternative way of getting your Quartus/Libero license."\
     "HOG_LD_LIBRARY_PATH" "NOT defined. Hog might work as long as all the necessary library are found."\
     "HOG_SIMULATION_LIB_PATH" "NOT defined. Hog-CI will not be able to run simulations using third-party simulators."\
-    "HOG_CHECK_PROJVER" "NOT defined. Hog will NOT check the CI project version. Set this variable to '1' if you want Hog to check the CI project version before creating the HDL project in Create_Project stage. If the project has not been changed with respect to the target branch, the CI will skip this project" \
-    "HOG_CHECK_SYNTAX" "NOT defined. Hog will NOT check the syntax. Set this variable to '1' if you want Hog to check the syntax after creating the HDL project in Create_Project stage." \
+    "HOG_CHECK_PROJVER" "NOT defined. Hog will NOT check the CI project version. \
+    Set this variable to '1' if you want Hog to check the CI project version before creating the HDL project in Create_Project stage. \
+    If the project has not been changed with respect to the target branch, the CI will skip this project" \
+    "HOG_CHECK_SYNTAX" "NOT defined. Hog will NOT check the syntax. \
+    Set this variable to '1' if you want Hog to check the syntax after creating the HDL project in Create_Project stage." \
     "HOG_NO_BITSTREAM" "NOT defined. Hog-CI will run the implementation up to the write_bitstream stage and create bit files." \
     "HOG_NO_RESET_BD" "NOT defined or not equal to 1. Hog will reset .bd files (if any) before starting synthesis."\
     "HOG_IP_PATH" "NOT defined. Hog-CI will NOT use an EOS/LOCAL IP repository to speed up the IP synthesis." \
