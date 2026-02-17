@@ -58,13 +58,13 @@
         EXT_CMD="";
       fi;
     - if [[ -f $HOG_APPTAINER_IMAGE ]]; then
-        echo "[INFO] Hog-CI will run inside Apptainer container $HOG_APPTAINER_IMAGE..."
+        echo "[INFO] Hog-CI will run inside Apptainer container $HOG_APPTAINER_IMAGE...";
         if [[ -n $HOG_APPTAINER_EXTRA_PATH ]]; then
           EXTRA_PATH="-B $HOG_APPTAINER_EXTRA_PATH";
         fi;
-        APP_CMD="apptainer exec -H $PWD $EXTRA_PATH $HOG_APPTAINER_IMAGE /bin/bash -c "export PATH=${HOG_PATH}:\$PATH;"
+        APP_CMD="apptainer exec -H $PWD $EXTRA_PATH $HOG_APPTAINER_IMAGE /bin/bash -c "export PATH=${HOG_PATH}:\$PATH;";
       else
-        APP_CMD=""
+        APP_CMD="";
       fi;
     - eval "$APP_CMD ./Hog/Do CPE $PROJECT_NAME"
     - if [[ -v HOG_CHECK_PROJVER ]] && [[ $HOG_CHECK_PROJVER == '1' ]]; then
@@ -118,13 +118,13 @@
         EXT_CMD="";
       fi;
     - if [[ -f $HOG_APPTAINER_IMAGE ]]; then
-        echo "[INFO] Hog-CI will run inside Apptainer container $HOG_APPTAINER_IMAGE..."
+        echo "[INFO] Hog-CI will run inside Apptainer container $HOG_APPTAINER_IMAGE...";
         if [[ -n $HOG_APPTAINER_EXTRA_PATH ]]; then
           EXTRA_PATH="-B $HOG_APPTAINER_EXTRA_PATH";
         fi;
-        APP_CMD="apptainer exec -H $PWD $EXTRA_PATH $HOG_APPTAINER_IMAGE /bin/bash -c "export PATH=${HOG_PATH}:\$PATH;"
+        APP_CMD="apptainer exec -H $PWD $EXTRA_PATH $HOG_APPTAINER_IMAGE /bin/bash -c "export PATH=${HOG_PATH}:\$PATH;";
       else
-        APP_CMD=""
+        APP_CMD="";
       fi;
     - eval "$APP_CMD ./Hog/Do CPE $PROJECT_NAME"
     - if grep -q "^libero" Top/$PROJECT_NAME/hog.conf; then
