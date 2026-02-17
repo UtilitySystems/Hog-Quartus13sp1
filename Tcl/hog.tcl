@@ -699,7 +699,7 @@ proc CheckEnv {project_name ide} {
   set essential_commands [dict create "git" "--version" "$ide" "-version"]
   set additional_commands [dict create \
     "vsim" "-version"\
-    "eos" "--version"\
+    "eos" ""\
     "kinit" ""\
     "rclone" "--version"
   ]
