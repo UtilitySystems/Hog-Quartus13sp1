@@ -54,7 +54,7 @@ set default_commands {
   # OPTIONS: verbose
   }
 
-  \^{CHECKPROJVER|CPV}?$ {#
+  \^(CHECKPROJVER|CPV)?$ {#
     set do_checkproj_ver 1
   # NAME: CHECKPROJVER or CPV
   # DESCRIPTION: Check the project version just before creating the HDL project in Create_Project stage. \
