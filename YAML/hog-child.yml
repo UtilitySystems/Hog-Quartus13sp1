@@ -62,7 +62,7 @@
         if [[ -n $HOG_APPTAINER_EXTRA_PATH ]]; then
           EXTRA_PATH="-B $HOG_APPTAINER_EXTRA_PATH";
         fi;
-        APP_CMD="apptainer exec -H $PWD $EXTRA_PATH $HOG_APPTAINER_IMAGE ";
+        APP_CMD="apptainer exec -H $PWD $EXTRA_PATH --env PATH='$HOG_PATH:\$PATH'  $HOG_APPTAINER_IMAGE ";
       else
         APP_CMD="";
       fi;
@@ -121,7 +121,7 @@
         if [[ -n $HOG_APPTAINER_EXTRA_PATH ]]; then
           EXTRA_PATH="-B $HOG_APPTAINER_EXTRA_PATH";
         fi;
-        APP_CMD="apptainer exec -H $PWD $EXTRA_PATH $HOG_APPTAINER_IMAGE  ";
+        APP_CMD="apptainer exec -H $PWD $EXTRA_PATH --env PATH='$HOG_PATH:\$PATH' $HOG_APPTAINER_IMAGE ";
       else
         APP_CMD="";
       fi;
@@ -231,7 +231,7 @@
         if [ -f "$HOG_APPTAINER_IMAGE" ]; then
           if [ "$ENABLE_EOS" = "1" ]; then
             KINIT_CMD="(kinit $EOS_USER@CERN.CH <<< $EOS_PASSWORD) || echo 'Kinit failed with exit code \$?, but continuing anyway...';";
-            APP_CMD="$APP_CMD $KINIT_CMD &&";
+            APP_CMD="$APP_CMD $KINIT_CMD";
           fi;
         fi;
         echo "$APP_CMD $EXEC_CMD";
