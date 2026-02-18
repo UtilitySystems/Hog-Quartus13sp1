@@ -230,12 +230,16 @@
         fi;
         if [ -f "$HOG_APPTAINER_IMAGE" ]; then
           if [ "$ENABLE_EOS" = "1" ]; then
-            KINIT_CMD="(echo \"$EOS_PASSWORD\" | kinit $EOS_USER@CERN.CH) || echo 'Kinit failed with exit code \$?, but continuing anyway...';";
-            APP_CMD="$APP_CMD bash -c $KINIT_CMD";
+            FULL_CMD="echo \"$EOS_PASSWORD\" | kinit $EOS_USER@CERN.CH || echo \"Kinit failed with exit code \$?, but continuing anyway...\"; $EXEC_CMD";
+          else
+            FULL_CMD="$EXEC_CMD";
           fi;
+          echo "$APP_CMD bash -c \"$FULL_CMD\"";
+          eval "$APP_CMD bash -c \"$FULL_CMD\"";
+        else
+          echo "$EXEC_CMD";
+          eval "$EXEC_CMD";
         fi;
-        echo "$APP_CMD $EXEC_CMD";
-        eval "$APP_CMD $EXEC_CMD";
       fi;
     - if [ ! -f "./Projects/$PROJECT_NAME/skip.me" ]; then
         if [ -n "$HOG_ONLY_SYNTH" ] && [ "$HOG_ONLY_SYNTH" = '1' ]; then
