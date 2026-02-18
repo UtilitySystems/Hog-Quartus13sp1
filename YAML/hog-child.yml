@@ -62,7 +62,7 @@
         if [[ -n $HOG_APPTAINER_EXTRA_PATH ]]; then
           EXTRA_PATH="-B $HOG_APPTAINER_EXTRA_PATH";
         fi;
-        APP_CMD="apptainer exec -H $PWD $EXTRA_PATH --env PATH='$HOG_PATH:\$PATH'  $HOG_APPTAINER_IMAGE ";
+        APP_CMD="apptainer exec -H $PWD $EXTRA_PATH $HOG_APPTAINER_IMAGE ";
       else
         APP_CMD="";
       fi;
@@ -121,7 +121,7 @@
         if [[ -n $HOG_APPTAINER_EXTRA_PATH ]]; then
           EXTRA_PATH="-B $HOG_APPTAINER_EXTRA_PATH";
         fi;
-        APP_CMD="apptainer exec -H $PWD $EXTRA_PATH --env PATH='$HOG_PATH:\$PATH' $HOG_APPTAINER_IMAGE ";
+        APP_CMD="apptainer exec -H $PWD $EXTRA_PATH $HOG_APPTAINER_IMAGE ";
       else
         APP_CMD="";
       fi;
@@ -234,8 +234,8 @@
           else
             FULL_CMD="$EXEC_CMD";
           fi;
-          echo "$APP_CMD bash -c \"$FULL_CMD\"";
-          eval "$APP_CMD bash -c \"$FULL_CMD\"";
+          echo "$APP_CMD bash -c '${FULL_CMD}'";
+          eval "$APP_CMD bash -c '${FULL_CMD}'";
         else
           echo "$EXEC_CMD";
           eval "$EXEC_CMD";
