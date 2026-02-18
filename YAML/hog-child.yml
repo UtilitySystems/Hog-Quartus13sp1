@@ -230,8 +230,8 @@
         fi;
         if [ -f "$HOG_APPTAINER_IMAGE" ]; then
           if [ "$ENABLE_EOS" = "1" ]; then
-            KINIT_CMD="(kinit $EOS_USER@CERN.CH <<< $EOS_PASSWORD) || echo 'Kinit failed with exit code \$?, but continuing anyway...';";
-            APP_CMD="$APP_CMD $KINIT_CMD";
+            KINIT_CMD="(echo \"$EOS_PASSWORD\" | kinit $EOS_USER@CERN.CH) || echo 'Kinit failed with exit code \$?, but continuing anyway...';";
+            APP_CMD="$APP_CMD bash -c $KINIT_CMD";
           fi;
         fi;
         echo "$APP_CMD $EXEC_CMD";
