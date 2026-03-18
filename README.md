@@ -1,4 +1,7 @@
-
+# Fork of HDL On Git (Hog)
+This fork is modified version of Hog to work with Quartus 13.0sp1.
+Intel only supports Cyclone II devices up to version 13.0sp1.
+Version 13.0sp1 is old enough, it probably does not make sense to introduce run time conditions to make it work. I am just working around specific problems to make Hog work with this version to support the Cyclone II device.
 
 # HDL On Git (Hog)
 
