@@ -5006,10 +5006,11 @@ proc LaunchImplementation {reset do_create run_folder project_name {repo_path .}
       Msg Info "Time Quest was successfully run for revision $revision.\n"
       load_package report
       load_report
-      set panel "Timing Analyzer||Timing Analyzer Summary"
+      set panel "TimeQuest Timing Analyzer||TimeQuest Timing Analyzer Summary"
       set device [get_report_panel_data -name $panel -col 1 -row_name "Device Name"]
       set timing_model [get_report_panel_data -name $panel -col 1 -row_name "Timing Models"]
       set delay_model [get_report_panel_data -name $panel -col 1 -row_name "Delay Model"]
+      # In quartus 13.0sp1, the get_timing_analysis_summary_results does not work using TimeQuest
       #set slack        [ get_timing_analysis_summary_results -slack ]
       Msg Info "*******************************************************************"
       Msg Info "Device: $device"
@@ -5435,12 +5436,13 @@ proc LaunchSynthesis {reset do_create run_folder project_name {repo_path .} {ext
     }
 
     # Generate IP Files
-    if {[catch {execute_module -tool ipg -args "--clean"} result]} {
-      Msg Error "Result: $result\n"
-      Msg Error "IP Generation failed. See the report file.\n"
-    } else {
-      Msg Info "IP Generation was successful for revision $revision.\n"
-    }
+    # I could not find equivelant method of generating IP in Quartus 13.0sp1
+    #if {[catch {execute_module -tool ipg -args "--clean"} result]} {
+    #  Msg Error "Result: $result\n"
+    #  Msg Error "IP Generation failed. See the report file.\n"
+    #} else {
+    #  Msg Info "IP Generation was successful for revision $revision.\n"
+    #}
 
     # Execute synthesis
     if {[catch {execute_module -tool map -args "--parallel"} result]} {

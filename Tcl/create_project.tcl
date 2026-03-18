@@ -130,7 +130,9 @@ proc InitProject {} {
         project_close
       }
 
-      file delete {*}[glob -nocomplain $globalSettings::DESIGN.q*]
+      foreach path [glob -nocomplain $globalSettings::DESIGN.q*] {
+        file delete $path
+      }
 
       project_new -family $globalSettings::FAMILY -overwrite -part $globalSettings::PART $globalSettings::DESIGN
       set_global_assignment -name PROJECT_OUTPUT_DIRECTORY output_files
