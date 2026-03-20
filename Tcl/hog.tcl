@@ -4529,7 +4529,7 @@ proc InitLauncher {script tcl_path parameters commands argv {custom_commands ""}
   if {[IsTclsh]} {
     # command is filled with the IDE exectuable when this function is called by Tcl scrpt
     if {$proj_conf != 0} {
-      CheckLatestHogRelease $repo_path
+      #CheckLatestHogRelease $repo_path
 
       lassign [GetIDECommand $proj_conf] cmd before_tcl_script after_tcl_script end_marker
       Msg Info "Project $project uses $cmd IDE"
